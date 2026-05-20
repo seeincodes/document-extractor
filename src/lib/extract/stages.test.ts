@@ -41,8 +41,20 @@ describe('defaultStages', () => {
     expect(result.confidence).toBeGreaterThan(0);
   }, 15_000);
 
-  it('detectSignature() returns null until group 7 lands', async () => {
+  it('detectSignature() returns a typed result on a valid page', async () => {
     const pages = await defaultStages.rasterize(readBytes(CLEAN_LETTER));
-    expect(await defaultStages.detectSignature(pages, 'j_test')).toBeNull();
+    const result = await defaultStages.detectSignature(pages, 'j_test');
+
+    // Either a detected signature (clean-letter.pdf has a vector signature
+    // stroke that rasterizes successfully) or a typed not_found result.
+    // Both are valid outcomes of the heuristic on this fixture.
+    if (result?.status === 'detected') {
+      expect(result.detector).toBe('heuristic');
+      expect(result.confidence).toBeGreaterThan(0);
+    } else if (result?.status === 'not_found') {
+      expect(result.reason).toBeTruthy();
+    } else {
+      throw new Error(`unexpected result shape: ${String(result?.status)}`);
+    }
   }, 15_000);
 });

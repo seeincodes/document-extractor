@@ -85,17 +85,17 @@ _Satisfies: [MVP6]_
 _Satisfies: [MVP7], [MVP8]_
 
 - [x] Install `sharp`
-- [ ] Implement `lib/detect/signature.ts` exporting `detectSignature(pages, opts)`:
-  - [ ] Crop the bottom 30% of the last page (color + greyscale)
-  - [ ] `sharp().greyscale().threshold(180)` to binarize
-  - [ ] Connected-components flood-fill in TypeScript (~200 LOC)
-  - [ ] Filter components by aspect ratio (2:1–6:1), area, and stroke-width variance
-  - [ ] Pick the largest qualifying component as the signature bbox
-  - [ ] Compute confidence (size, isolation, stroke variance)
-  - [ ] Return `{ bbox, confidence, detector: 'heuristic' }` or `null` with reason "no candidate region met confidence threshold"
-- [ ] Wire into the orchestrator
-- [ ] Emit `region_ready` SSE event (or a `null` payload when not detected)
-- [ ] Commit: `feat(detect): signature heuristic`
+- [x] Implement `lib/detect/signature.ts` exporting `detectSignature(pages, opts)`:
+  - [x] Crop the bottom 30% of the last page (color + greyscale)
+  - [x] `sharp().greyscale().threshold(180)` to binarize
+  - [x] Connected-components flood-fill in TypeScript (~200 LOC)
+  - [x] Filter components by aspect ratio (2:1–6:1), area, and stroke-width variance
+  - [x] Pick the largest qualifying component as the signature bbox
+  - [x] Compute confidence (size, isolation, stroke variance)
+  - [x] Return `{ bbox, confidence, detector: 'heuristic' }` or `null` with reason "no candidate region met confidence threshold"
+- [x] Wire into the orchestrator
+- [x] Emit `region_ready` SSE event (or a `null` payload when not detected)
+- [x] Commit: `feat(detect): signature heuristic`
 
 ### 8. Region cropping and download endpoint
 
