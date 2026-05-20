@@ -176,6 +176,21 @@ describe('detectFooter — multi-page note', () => {
     expectDetected(result);
     expect(result.note).toBeUndefined();
   });
+
+  it('does NOT annotate when pages have mismatched dimensions', async () => {
+    // Two pages with identical footer bands but different sizes. The
+    // footprint comparison short-circuits to similarity=0 on dimension
+    // mismatch, so the note must be absent. This documents the behavior
+    // for mixed-resolution scans where the footer text is the same but
+    // the canvas size differs page to page.
+    const pages = [
+      makePageWithInkBand(100, 500, 450, 480),
+      makePageWithInkBand(120, 600, 540, 576), // proportionally similar but different dims
+    ];
+    const result = await detectFooter(pages, { mode: 'smart' });
+    expectDetected(result);
+    expect(result.note).toBeUndefined();
+  });
 });
 
 describe('detectFooter — real PDF fixtures', () => {

@@ -133,8 +133,13 @@ function scoreConfidence(
       WHITE_ROW_NORMALIZATION_RANGE,
   );
 
+  // The upper bound (> SCAN_WINDOW_RATIO) is unreachable: the scan loop in
+  // smartScan never visits rows beyond it. The lower bound is what does real
+  // work — boundaries shallower than MIN_BOUNDARY_Y_RATIO are rejected
+  // before this call, but the explicit guard makes the intent obvious and
+  // catches any future caller that bypasses the gate.
   let depthSignal: number;
-  if (boundaryYRatio < MIN_BOUNDARY_Y_RATIO || boundaryYRatio > SCAN_WINDOW_RATIO) {
+  if (boundaryYRatio < MIN_BOUNDARY_Y_RATIO) {
     depthSignal = 0;
   } else if (boundaryYRatio < DEFAULT_CROP_Y_RATIO) {
     depthSignal =

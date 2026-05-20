@@ -60,13 +60,24 @@ export async function detectFooter(
   const result = smart ?? defaultCrop();
 
   // Multi-page note: only meaningful when there's more than one page AND
-  // the same footer footprint appears on every page. Compare the per-page
-  // ink layout within the bbox we just chose — body content above the
-  // footer band varies page to page even when the footer itself doesn't,
-  // so a full-window comparison would miss recurring footers.
+  // the same footer footprint appears on every other page. Compare the
+  // per-page ink layout within the bbox we just chose — body content above
+  // the footer band varies page to page even when the footer itself
+  // doesn't, so a full-window comparison would miss recurring footers.
+  //
+  // TODO: when the bbox is large (smart-scan picked a high boundary because
+  // there's a clean gap above the footer), the comparison currently spans
+  // body content that varies page to page. Tightening to a fixed bottom-
+  // strip window (e.g. the bottom 8% of the page) would let us tighten the
+  // FOOTPRINT_MATCH_THRESHOLD back to ~0.85 without losing real recurrences.
   if (pages.length > 1) {
-    const matchedPages = countMatchingFootprints(pages, result.bbox);
-    if (matchedPages === pages.length) {
+    const otherPages = pages.slice(0, -1);
+    const matchedOthers = countMatchingFootprints(
+      otherPages,
+      lastPage,
+      result.bbox,
+    );
+    if (matchedOthers === otherPages.length) {
       return {
         ...result,
         note: `Same region appears on all ${pages.length} pages.`,
@@ -165,11 +176,14 @@ function scoreConfidence(
       WHITE_ROW_NORMALIZATION_RANGE,
   );
 
+  // The upper bound (> SCAN_WINDOW_RATIO) is unreachable: boundary indices
+  // come from the scan window itself, whose width is bounded by
+  // SCAN_WINDOW_RATIO. The lower bound is what does real work — boundaries
+  // less than MIN_BOUNDARY_FROM_BOTTOM_RATIO are rejected before this call,
+  // but if any future caller bypasses that gate the depth signal collapses
+  // to zero, which is the correct behavior.
   let depthSignal: number;
-  if (
-    boundaryDepthFromBottom < MIN_BOUNDARY_FROM_BOTTOM_RATIO ||
-    boundaryDepthFromBottom > SCAN_WINDOW_RATIO
-  ) {
+  if (boundaryDepthFromBottom < MIN_BOUNDARY_FROM_BOTTOM_RATIO) {
     depthSignal = 0;
   } else if (boundaryDepthFromBottom < DEFAULT_CROP_H_RATIO) {
     depthSignal =
@@ -268,14 +282,13 @@ function footprintSimilarity(
 
 function countMatchingFootprints(
   pages: RasterizedPage[],
+  reference: RasterizedPage,
   referenceBBox: { x: number; y: number; w: number; h: number },
 ): number {
-  const last = pages.at(-1);
-  if (!last) return 0;
   let matches = 0;
   for (const page of pages) {
     if (
-      footprintSimilarity(page, last, referenceBBox) >=
+      footprintSimilarity(page, reference, referenceBBox) >=
       FOOTPRINT_MATCH_THRESHOLD
     ) {
       matches++;
