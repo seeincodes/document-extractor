@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, Circle, Loader2 } from 'lucide-react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -48,6 +48,16 @@ export function JobProgress({ jobId, onEvent }: JobProgressProps) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [doneMsg, setDoneMsg] = useState(false);
 
+  // Stash onEvent in a ref so the SSE effect doesn't need to depend on it.
+  // Without this, any future parent that wraps onEvent in a closure with
+  // captured state would re-trigger the SSE effect, close the EventSource,
+  // and reopen it — silently dropping in-flight events. The ref is updated
+  // inside its own effect (not during render) per react-hooks/refs.
+  const onEventRef = useRef(onEvent);
+  useEffect(() => {
+    onEventRef.current = onEvent;
+  });
+
   // The component expects the parent to remount it via `key={jobId}` when
   // the job changes — that's the idiomatic React 19 way to reset all the
   // useState defaults rather than calling setters synchronously in an
@@ -68,13 +78,13 @@ export function JobProgress({ jobId, onEvent }: JobProgressProps) {
       if (!data) return;
       setStage(data.stage);
       setProgress(Math.max(0, Math.min(1, data.progress)));
-      onEvent({ event: 'stage', data });
+      onEventRef.current({ event: 'stage', data });
     };
 
     const onRegion = (e: MessageEvent) => {
       const data = safeParse<RegionReadyData>(e.data);
       if (!data) return;
-      onEvent({ event: 'region_ready', data });
+      onEventRef.current({ event: 'region_ready', data });
     };
 
     const onDone = (e: MessageEvent) => {
@@ -84,7 +94,7 @@ export function JobProgress({ jobId, onEvent }: JobProgressProps) {
       setStage('done');
       setDoneMsg(true);
       setTerminated(true);
-      onEvent({ event: 'done', data });
+      onEventRef.current({ event: 'done', data });
       es.close();
     };
 
@@ -94,7 +104,7 @@ export function JobProgress({ jobId, onEvent }: JobProgressProps) {
       setErrorMsg(data.message);
       setStage('failed');
       setTerminated(true);
-      onEvent({ event: 'error', data });
+      onEventRef.current({ event: 'error', data });
       es.close();
     };
 
@@ -106,7 +116,7 @@ export function JobProgress({ jobId, onEvent }: JobProgressProps) {
     return () => {
       es.close();
     };
-  }, [jobId, onEvent]);
+  }, [jobId]);
 
   const pct = Math.round(progress * 100);
 

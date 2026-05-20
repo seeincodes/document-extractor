@@ -81,6 +81,10 @@ export function HomePage() {
     setApiError(null);
     setUploading(true);
 
+    // TODO: if the user picks a second file while file 1's POST is still in
+    // flight (rare but possible — 200–500ms window), the first call's
+    // setJobId still wins on resolve. Wire an AbortController per upload
+    // and abort the previous fetch when a new file lands.
     const result = await postUpload(chosen);
     setUploading(false);
     if (result.ok) {
@@ -143,9 +147,9 @@ export function HomePage() {
 
       {jobId ? (
         <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <RegionCard region="letterhead" state={regions.letterhead} jobId={jobId} />
-          <RegionCard region="footer" state={regions.footer} jobId={jobId} />
-          <RegionCard region="signature" state={regions.signature} jobId={jobId} />
+          <RegionCard region="letterhead" state={regions.letterhead} />
+          <RegionCard region="footer" state={regions.footer} />
+          <RegionCard region="signature" state={regions.signature} />
         </section>
       ) : null}
     </main>

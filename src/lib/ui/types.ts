@@ -76,7 +76,4 @@ export interface JobProgressProps {
 export interface RegionCardProps {
   region: RegionName;
   state: RegionViewState;
-  // The jobId is used to compose download URLs; the card is otherwise
-  // stateless.
-  jobId: string;
 }

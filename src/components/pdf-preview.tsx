@@ -57,13 +57,20 @@ export function PdfPreview({ file, className }: PdfPreviewProps) {
   // from `file` plus the keyed async result in render. The effect only
   // writes to state from inside the promise callbacks — never synchronously
   // — which satisfies react-hooks/set-state-in-effect.
+  //
+  // Both `asyncResult` and `pdfMeta` carry the originating `File` so the
+  // render path can ignore stale values from a previous file swap. Without
+  // the key, a fast onLoadSuccess from a previous PDF could briefly render
+  // its page count against the new file's data.
   const isPdf = file !== null && file.type.startsWith('application/pdf');
   const [asyncResult, setAsyncResult] = useState<
-    | { fileKey: File | null; data: ArrayBuffer }
-    | { fileKey: File | null; error: true }
+    | { fileKey: File; data: ArrayBuffer }
+    | { fileKey: File; error: true }
     | null
   >(null);
-  const [numPages, setNumPages] = useState(0);
+  const [pdfMeta, setPdfMeta] = useState<
+    { fileKey: File; numPages: number } | null
+  >(null);
 
   useEffect(() => {
     if (!isPdf || file === null) return;
@@ -74,10 +81,7 @@ export function PdfPreview({ file, className }: PdfPreviewProps) {
     file
       .arrayBuffer()
       .then((buf) => {
-        if (!cancelled) {
-          setAsyncResult({ fileKey, data: buf });
-          setNumPages(0);
-        }
+        if (!cancelled) setAsyncResult({ fileKey, data: buf });
       })
       .catch(() => {
         if (!cancelled) setAsyncResult({ fileKey, error: true });
@@ -130,11 +134,17 @@ export function PdfPreview({ file, className }: PdfPreviewProps) {
     );
   }
 
+  // Only render pages when the loaded metadata matches the current file —
+  // otherwise treat onLoadSuccess from a stale file as not-yet-loaded.
+  const numPages = pdfMeta && pdfMeta.fileKey === file ? pdfMeta.numPages : 0;
+
   return (
     <PreviewShell className={className}>
       <Document
         file={{ data: state.data }}
-        onLoadSuccess={({ numPages: n }) => setNumPages(n)}
+        onLoadSuccess={({ numPages: n }) => {
+          if (file) setPdfMeta({ fileKey: file, numPages: n });
+        }}
         onLoadError={() => {
           if (file) setAsyncResult({ fileKey: file, error: true });
         }}
