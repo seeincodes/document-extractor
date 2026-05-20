@@ -1,0 +1,165 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R /F2 6 0 R /F3 7 0 R >> /ProcSet [/PDF /Text] >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 2509 >>
+stream
+BT
+/F1 11 Tf
+1 0 0 1 72 768.00 Tm
+(Dear Reviewer, this letter has no formal letterhead, no centred) Tj
+ET
+BT
+/F1 11 Tf
+1 0 0 1 72 752.00 Tm
+(company name, no logo, and no horizontal rule along the top of the) Tj
+ET
+BT
+/F1 11 Tf
+1 0 0 1 72 736.00 Tm
+(page. It is meant to exercise the negative path of the letterhead) Tj
+ET
+BT
+/F1 11 Tf
+1 0 0 1 72 720.00 Tm
+(detector: there is no ink-then-whitespace pattern in the top third) Tj
+ET
+BT
+/F1 11 Tf
+1 0 0 1 72 704.00 Tm
+(of the page, so the smart-boundary scan should not lock onto any) Tj
+ET
+BT
+/F1 11 Tf
+1 0 0 1 72 688.00 Tm
+(particular y-coordinate as the lower edge of a letterhead block.) Tj
+ET
+BT
+/F1 11 Tf
+1 0 0 1 72 656.00 Tm
+(The intent here is to produce a document that looks the way many) Tj
+ET
+BT
+/F1 11 Tf
+1 0 0 1 72 640.00 Tm
+(informal letters and memos look in practice: a salutation followed) Tj
+ET
+BT
+/F1 11 Tf
+1 0 0 1 72 624.00 Tm
+(immediately by paragraphs of body text, with no decorative header) Tj
+ET
+BT
+/F1 11 Tf
+1 0 0 1 72 608.00 Tm
+(separating the sender block from the message itself. Real-world) Tj
+ET
+BT
+/F1 11 Tf
+1 0 0 1 72 592.00 Tm
+(inputs of this shape are common enough that the extractor must) Tj
+ET
+BT
+/F1 11 Tf
+1 0 0 1 72 576.00 Tm
+(handle them without hallucinating a letterhead region.) Tj
+ET
+BT
+/F1 11 Tf
+1 0 0 1 72 544.00 Tm
+(We continue with several more lines of body text to fill the page) Tj
+ET
+BT
+/F1 11 Tf
+1 0 0 1 72 528.00 Tm
+(and ensure that the detector cannot rely on a short document as a) Tj
+ET
+BT
+/F1 11 Tf
+1 0 0 1 72 512.00 Tm
+(shortcut. The body wraps around natural paragraph breaks and uses) Tj
+ET
+BT
+/F1 11 Tf
+1 0 0 1 72 496.00 Tm
+(the same 11pt Helvetica face throughout, which means the ink) Tj
+ET
+BT
+/F1 11 Tf
+1 0 0 1 72 480.00 Tm
+(profile across the top of the page is roughly uniform rather than) Tj
+ET
+BT
+/F1 11 Tf
+1 0 0 1 72 464.00 Tm
+(showing the sharp transitions characteristic of a letterhead.) Tj
+ET
+BT
+/F1 11 Tf
+1 0 0 1 72 432.00 Tm
+(In the absence of any reliable ink-to-whitespace transition, the) Tj
+ET
+BT
+/F1 11 Tf
+1 0 0 1 72 416.00 Tm
+(detector is expected either to fall back to the default 18% crop) Tj
+ET
+BT
+/F1 11 Tf
+1 0 0 1 72 400.00 Tm
+(with low confidence or to return null and let downstream consumers) Tj
+ET
+BT
+/F1 11 Tf
+1 0 0 1 72 384.00 Tm
+(decide. This fixture deliberately makes either outcome defensible.) Tj
+ET
+BT
+/F1 11 Tf
+1 0 0 1 72 352.00 Tm
+(Sincerely,) Tj
+ET
+BT
+/F2 11 Tf
+1 0 0 1 72 158.00 Tm
+(John Doe) Tj
+ET
+BT
+/F1 9 Tf
+1 0 0 1 281.25 22.00 Tm
+(Page 1 of 1) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+7 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding >>
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000289 00000 n 
+0000002849 00000 n 
+0000002946 00000 n 
+0000003048 00000 n 
+trailer
+<< /Size 8 /Root 1 0 R >>
+startxref
+3153
+%%EOF
