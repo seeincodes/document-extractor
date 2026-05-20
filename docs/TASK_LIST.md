@@ -111,7 +111,7 @@ _Satisfies: [MVP10]_
 
 _Satisfies: [MVP1], [MVP3], [MVP9], [MVP10]_
 
-- [ ] Install `react-dropzone` and `react-pdf`
+- [x] Install `react-dropzone` and `react-pdf`
 - [ ] Implement the home page with a dropzone (max 1 file in MVP — batch comes later)
 - [ ] Wire dropzone → `POST /api/extract` → store `jobId` in component state
 - [ ] Render `react-pdf` preview of the uploaded PDF
