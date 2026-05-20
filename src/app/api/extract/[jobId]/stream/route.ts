@@ -3,15 +3,16 @@ import { join } from 'node:path';
 
 import { cropPageToPng } from '@/lib/extract/crop';
 import { ExtractError } from '@/lib/extract/errors';
-import {
-  createJobStore,
-  type JobStore,
-} from '@/lib/extract/jobStore';
+import type { JobStore } from '@/lib/extract/jobStore';
 import {
   runJob as defaultRunJob,
   type MaterializeRegion,
   type RunJobInput,
 } from '@/lib/extract/run';
+import {
+  __resetSharedStoreForTests,
+  getSharedJobStore,
+} from '@/lib/extract/sharedJobStore';
 import { createSseEmitter } from '@/lib/extract/sse';
 import { defaultStages } from '@/lib/extract/stages';
 import type { SupportedKind } from '@/lib/io/validate';
@@ -32,11 +33,6 @@ export interface StreamRouteOverrides {
   fileKindByJobId?: (jobId: string) => SupportedKind;
 }
 
-// Module-scoped state. The upload route shares no actual store reference with
-// this route yet — they each construct their own. That gap closes in group 8
-// (the region-download endpoint) when we lift the JobStore into a single
-// process-wide singleton. For group 4 the test override is the seam.
-let store: JobStore = createJobStore();
 let runJobImpl: RunJobFn = defaultRunJob;
 let readUploadBytes: (jobId: string) => Promise<Uint8Array> =
   defaultReadUploadBytes;
@@ -45,7 +41,7 @@ let fileKindByJobId: (jobId: string) => SupportedKind = () => 'pdf';
 const SAFE_JOB_ID = /^[A-Za-z0-9_-]+$/;
 
 export function __resetForTests(overrides: StreamRouteOverrides = {}): void {
-  store = overrides.store ?? createJobStore();
+  __resetSharedStoreForTests(overrides.store);
   runJobImpl = overrides.runJob ?? defaultRunJob;
   readUploadBytes = overrides.readUploadBytes ?? defaultReadUploadBytes;
   fileKindByJobId = overrides.fileKindByJobId ?? (() => 'pdf');
@@ -55,7 +51,7 @@ async function defaultReadUploadBytes(jobId: string): Promise<Uint8Array> {
   // The GET handler already 404s when the JobStore has no record, so by the
   // time we get here the record must exist. If it somehow doesn't, that's an
   // INTERNAL_ERROR, not a user-input problem.
-  const record = store.get(jobId);
+  const record = getSharedJobStore().get(jobId);
   if (!record) {
     throw new ExtractError(
       'INTERNAL_ERROR',
@@ -93,6 +89,7 @@ export async function GET(
     return jsonError(400, 'INVALID_JOB_ID', 'Invalid job ID.');
   }
 
+  const store = getSharedJobStore();
   const record = store.get(jobId);
   if (!record) {
     return jsonError(404, 'NOT_FOUND', 'Job not found or expired.');

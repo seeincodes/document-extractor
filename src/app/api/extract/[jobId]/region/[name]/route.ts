@@ -5,7 +5,11 @@ import {
   toUserMessage,
   type ExtractErrorCode,
 } from '@/lib/extract/errors';
-import { createJobStore, type JobStore } from '@/lib/extract/jobStore';
+import type { JobStore } from '@/lib/extract/jobStore';
+import {
+  __resetSharedStoreForTests,
+  getSharedJobStore,
+} from '@/lib/extract/sharedJobStore';
 import type { RegionName } from '@/lib/extract/sse';
 
 export const runtime = 'nodejs';
@@ -32,14 +36,8 @@ export interface RegionRouteOverrides {
   store?: JobStore;
 }
 
-// Module-scoped store. The same JobStore must be shared with the stream
-// route + upload route in production; that single-process singleton lands
-// in a later group. For now the override-injected store in tests is what
-// lets the suite run in isolation.
-let store: JobStore = createJobStore();
-
 export function __resetForTests(overrides: RegionRouteOverrides = {}): void {
-  store = overrides.store ?? createJobStore();
+  __resetSharedStoreForTests(overrides.store);
 }
 
 function jsonError(
@@ -71,7 +69,7 @@ export async function GET(
     );
   }
 
-  const record = store.get(jobId);
+  const record = getSharedJobStore().get(jobId);
   if (!record) {
     return jsonError(404, 'NOT_FOUND', 'Job not found or expired.');
   }

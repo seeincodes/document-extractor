@@ -111,16 +111,16 @@ _Satisfies: [MVP10]_
 
 _Satisfies: [MVP1], [MVP3], [MVP9], [MVP10]_
 
-- [ ] Install `react-dropzone` and `react-pdf`
-- [ ] Implement the home page with a dropzone (max 1 file in MVP — batch comes later)
-- [ ] Wire dropzone → `POST /api/extract` → store `jobId` in component state
-- [ ] Render `react-pdf` preview of the uploaded PDF
-- [ ] Open SSE connection to `/api/extract/:jobId/stream` and update progress UI on each event
-- [ ] Render three region cards (Letterhead, Footer, Signature) with image previews from `/api/extract/:jobId/region/:name`
-- [ ] Render explicit "not detected" state for any region that returns `null`
-- [ ] Wire per-region Download buttons (browser-initiated GET)
-- [ ] Build a typed `ApiError` shape and an error-to-message mapping component
-- [ ] Commit: `feat(ui): upload, preview, and results`
+- [x] Install `react-dropzone` and `react-pdf`
+- [x] Implement the home page with a dropzone (max 1 file in MVP — batch comes later)
+- [x] Wire dropzone → `POST /api/extract` → store `jobId` in component state
+- [x] Render `react-pdf` preview of the uploaded PDF
+- [x] Open SSE connection to `/api/extract/:jobId/stream` and update progress UI on each event
+- [x] Render three region cards (Letterhead, Footer, Signature) with image previews from `/api/extract/:jobId/region/:name`
+- [x] Render explicit "not detected" state for any region that returns `null`
+- [x] Wire per-region Download buttons (browser-initiated GET)
+- [x] Build a typed `ApiError` shape and an error-to-message mapping component
+- [x] Commit: `feat(ui): upload, preview, and results`
 
 ### 10. Graceful error handling end-to-end
 
