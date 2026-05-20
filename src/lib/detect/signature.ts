@@ -1,7 +1,10 @@
 import sharp from 'sharp';
 
-import type { RasterizedPage } from '../rasterize/pdfjs';
 import type { NormalizedBBox, RegionResult } from '../extract/jobStore';
+import { logger } from '../logger';
+import type { RasterizedPage } from '../rasterize/pdfjs';
+import { VisionBudget } from '../vision/budget';
+import { verifySignature } from '../vision/claude';
 
 // ─── Algorithm parameters ──────────────────────────────────────────────────
 
@@ -25,6 +28,8 @@ const MIN_AREA_PX = 400;
 // A component must beat this confidence floor to be returned. Below the
 // floor, we surface null with a reason instead of a low-confidence guess.
 const MIN_CONFIDENCE = 0.35;
+
+const VISION_THRESHOLD = 0.6;
 
 // Saturation point for the area signal. Components ≥ this many pixels score
 // 1.0 on the area axis; smaller components scale linearly.
@@ -75,17 +80,62 @@ export async function detectSignature(
   const best = scored[0];
   if (!best || best.score < MIN_CONFIDENCE) return notFound();
 
+  const bbox = componentToNormalizedBBox(
+    best.component,
+    lastPage.width,
+    lastPage.height,
+    windowStartY,
+  );
+
+  if (best.score < VISION_THRESHOLD) {
+    try {
+      const cropBuf = await cropRegionForVision(lastPage, bbox);
+      const budget = new VisionBudget();
+      const visionResult = await verifySignature(cropBuf, bbox, budget);
+      if (visionResult?.verified) {
+        return {
+          status: 'detected',
+          bbox: visionResult.bbox,
+          detector: 'vision',
+          confidence: visionResult.confidence,
+        };
+      }
+    } catch (err) {
+      logger.warn({ err }, 'Vision fallback failed; using heuristic result');
+    }
+
+    return {
+      status: 'unverified',
+      bbox,
+      detector: 'heuristic',
+      confidence: best.score,
+      reason: 'Confidence below threshold; vision verification unavailable or inconclusive.',
+    };
+  }
+
   return {
     status: 'detected',
-    bbox: componentToNormalizedBBox(
-      best.component,
-      lastPage.width,
-      lastPage.height,
-      windowStartY,
-    ),
+    bbox,
     detector: 'heuristic',
     confidence: best.score,
   };
+}
+
+async function cropRegionForVision(
+  page: RasterizedPage,
+  bbox: NormalizedBBox,
+): Promise<Buffer> {
+  const x = Math.floor(bbox.x * page.width);
+  const y = Math.floor(bbox.y * page.height);
+  const w = Math.min(Math.floor(bbox.w * page.width), page.width - x);
+  const h = Math.min(Math.floor(bbox.h * page.height), page.height - y);
+
+  return sharp(Buffer.from(page.color), {
+    raw: { width: page.width, height: page.height, channels: 4 },
+  })
+    .extract({ left: x, top: y, width: Math.max(w, 1), height: Math.max(h, 1) })
+    .png()
+    .toBuffer();
 }
 
 function notFound(): RegionResult {
