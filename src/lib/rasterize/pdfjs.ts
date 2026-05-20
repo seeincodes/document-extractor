@@ -1,4 +1,6 @@
-import { createCanvas } from '@napi-rs/canvas';
+import { createCanvas, GlobalFonts } from '@napi-rs/canvas';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import type PdfjsLib from 'pdfjs-dist';
 import type {
   PDFDocumentProxy,
@@ -15,9 +17,36 @@ const PDF_USER_SPACE_DPI = 72;
 // bypass Turbopack's static analysis which rewrites pdfjs-dist's internal
 // module paths and breaks the worker resolver.
 let _pdfjs: typeof PdfjsLib | null = null;
+let _fontsRegistered = false;
+
+const STANDARD_FONT_DIR = join(
+  process.cwd(),
+  'node_modules/pdfjs-dist/standard_fonts/',
+);
+
+const FONT_MAPPINGS: readonly [string, string][] = [
+  ['LiberationSans-Regular.ttf', 'Helvetica'],
+  ['LiberationSans-Bold.ttf', 'Helvetica-Bold'],
+  ['LiberationSans-Italic.ttf', 'Helvetica-Oblique'],
+  ['LiberationSans-BoldItalic.ttf', 'Helvetica-BoldOblique'],
+];
+
+function registerStandardFonts(): void {
+  if (_fontsRegistered) return;
+  _fontsRegistered = true;
+  for (const [file, name] of FONT_MAPPINGS) {
+    const fullPath = join(STANDARD_FONT_DIR, file);
+    if (existsSync(fullPath)) {
+      GlobalFonts.registerFromPath(fullPath, name);
+    }
+  }
+}
 
 async function getPdfjs(): Promise<typeof PdfjsLib> {
   if (_pdfjs) return _pdfjs;
+
+  registerStandardFonts();
+
   // Dynamic import loads the module at runtime without Turbopack rewriting
   // the specifier. The legacy build is Node-safe (no DOM dependencies).
   _pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
@@ -79,9 +108,7 @@ async function loadDocument(
   const loadingTask = pdfjs.getDocument({
     data,
     isEvalSupported: false,
-    useSystemFonts: false,
-    disableFontFace: true,
-    useWorkerFetch: false,
+    standardFontDataUrl: STANDARD_FONT_DIR,
     verbosity: 0,
   });
   try {

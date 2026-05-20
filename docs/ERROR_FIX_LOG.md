@@ -124,3 +124,23 @@ These are documented preemptively based on the chosen tech stack. They are the t
 
 - **`exactOptionalPropertyTypes` interaction with React props** — `prop?: string` is _not_ assignable to `prop: string | undefined`. Be explicit in component prop types.
 - **`noUncheckedIndexedAccess` flags `array[0]` as `T | undefined`** — fix with explicit length checks or destructuring with a default. Don't disable the flag.
+
+---
+
+## Actual error entries
+
+### [2026-05-20] pdfjs-dist renders no text when rasterizing PDFs with standard Type 1 fonts
+
+- **Error:** Rasterized PDF pages contain only vector graphics (lines, curves) — all text is silently missing. Extracted letterhead/footer regions appear blank. Console shows `getPathGenerator - ignoring character: "Error: Requesting object that isn't resolved yet Helvetica_path_A".`
+- **Context:** Server-side PDF rasterization via `pdfjs-dist` + `@napi-rs/canvas`. The sample PDFs use standard Type 1 fonts (Helvetica, Helvetica-Bold) without embedding. The `loadDocument()` call used `useSystemFonts: false`, `disableFontFace: true`, `useWorkerFetch: false`.
+- **Root Cause:** Two issues: (1) `@napi-rs/canvas` does not ship with standard PDF fonts (Helvetica, etc.) registered — `pdfjs-dist` calls `ctx.font = '18px "Helvetica"'` but the canvas has no font by that name. (2) With `disableFontFace: true` and `useWorkerFetch: false`, pdfjs-dist falls back to glyph-path rendering using standard font data files (`.pfb`/`.ttf`), but these paths don't resolve in time because the standard font data factory is not configured.
+- **Fix:** (a) Register the LiberationSans TTF files (shipped in `pdfjs-dist/standard_fonts/`) with `GlobalFonts.registerFromPath()` under the standard font names (Helvetica, Helvetica-Bold, etc.). (b) Pass `standardFontDataUrl` pointing to the standard_fonts directory. (c) Remove `useSystemFonts: false`, `disableFontFace: true`, `useWorkerFetch: false` from the `getDocument()` options.
+- **Prevention:** Integration test `stages.test.ts` exercises real PDF rasterization. The fix also makes the test output more meaningful since the rasterized pages now contain actual text content for the detectors to analyze.
+
+### [2026-05-20] react-pdf preview shows "Couldn't render the preview" due to worker version mismatch
+
+- **Error:** `UnknownErrorException: The API version "5.4.296" does not match the Worker version "4.10.38".` Preview card shows error state.
+- **Context:** Client-side PDF preview using `react-pdf` which depends on `pdfjs-dist@5.4.296`. The project also has a direct `pdfjs-dist@4.10.38` dependency for server-side rasterization. npm hoists `pdfjs-dist@4.10.38` to the top-level `node_modules/` and nests `5.4.296` inside `react-pdf/node_modules/`.
+- **Root Cause:** The worker URL was set via `new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url)` which Turbopack resolved to the top-level (v4) package instead of react-pdf's nested v5 copy.
+- **Fix:** Copy the correct worker from `node_modules/react-pdf/node_modules/pdfjs-dist/build/pdf.worker.min.mjs` to `public/pdf.worker.min.mjs` and set `pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'`. Added a `postinstall` script to keep the file in sync.
+- **Prevention:** The postinstall script ensures the worker is always the version that matches react-pdf's bundled pdfjs-dist. If react-pdf is upgraded, the worker is automatically updated on `npm install`.
