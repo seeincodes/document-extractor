@@ -21,6 +21,13 @@ const WHITE_ROW_THRESHOLD = 0.8;          // ≥80% non-ink = a "white row"
 const MIN_BOUNDARY_Y_RATIO = 0.05;        // reject boundaries < 5% of height
 const MIN_SMART_CONFIDENCE = 0.5;         // below this, fall back to default
 
+// ink density at or above this saturates the "thick ink band" signal at 1.
+const FULL_INK_DENSITY_RATIO = 0.3;
+
+// The normalization window for the boundary-row whiteness signal. The window
+// runs from WHITE_ROW_THRESHOLD (signal = 0) up to 100% white (signal = 1).
+const WHITE_ROW_NORMALIZATION_RANGE = 1 - WHITE_ROW_THRESHOLD;
+
 export async function detectLetterhead(
   pages: RasterizedPage[],
   opts: LetterheadOptions = {},
@@ -114,26 +121,30 @@ function scoreConfidence(
   whiteRowInkRatio: number,
   boundaryYRatio: number,
 ): number {
-  // Three weighted signals per the design report:
-  //  * skinniness — thicker ink band = higher confidence the letterhead is real
-  //  * whiteness  — cleaner boundary row = higher confidence the gap is real
-  //  * depth      — boundaries near the default 18% are suspicious;
-  //                 boundaries 18–35% are most credible.
-  const skinniness = clamp01(1 - bandDensity / 0.3);
-  const whiteness = clamp01((1 - whiteRowInkRatio - WHITE_ROW_THRESHOLD) / 0.2);
+  // Three weighted signals per the design report. Each is mapped to [0, 1]
+  // where 1 = strongest evidence for a real letterhead.
+  //  * inkDensitySignal — denser band = more credible letterhead
+  //  * whitenessSignal  — cleaner boundary row = more credible gap
+  //  * depthSignal      — boundaries near the default 18% are suspicious;
+  //                       boundaries 18–35% are most credible
+  const inkDensitySignal = clamp01(bandDensity / FULL_INK_DENSITY_RATIO);
+  const whitenessSignal = clamp01(
+    (1 - whiteRowInkRatio - WHITE_ROW_THRESHOLD) /
+      WHITE_ROW_NORMALIZATION_RANGE,
+  );
 
-  let depth: number;
+  let depthSignal: number;
   if (boundaryYRatio < MIN_BOUNDARY_Y_RATIO || boundaryYRatio > SCAN_WINDOW_RATIO) {
-    depth = 0;
+    depthSignal = 0;
   } else if (boundaryYRatio < DEFAULT_CROP_Y_RATIO) {
-    depth =
+    depthSignal =
       (boundaryYRatio - MIN_BOUNDARY_Y_RATIO) /
       (DEFAULT_CROP_Y_RATIO - MIN_BOUNDARY_Y_RATIO);
   } else {
-    depth = 1;
+    depthSignal = 1;
   }
 
-  return 0.25 * (1 - skinniness) + 0.35 * whiteness + 0.4 * depth;
+  return 0.25 * inkDensitySignal + 0.35 * whitenessSignal + 0.4 * depthSignal;
 }
 
 function smartScan(page: RasterizedPage): RegionResult | null {
