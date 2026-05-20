@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   // bundler cannot place; pdfjs-dist's legacy entry expects a Node
   // environment. Both must be loaded as external CommonJS at runtime
   // rather than bundled into the server output.
-  serverExternalPackages: ['@napi-rs/canvas', 'pdfjs-dist', 'sharp'],
+  serverExternalPackages: ['@napi-rs/canvas', 'pdfjs-dist', 'sharp', 'pino', 'pino-pretty'],
 };
 
 export default nextConfig;

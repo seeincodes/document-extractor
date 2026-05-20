@@ -1,0 +1,27 @@
+services:
+  app:
+    build: .
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=production
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - VISION_BUDGET_USD_PER_REQUEST=${VISION_BUDGET_USD_PER_REQUEST:-0.05}
+      - VISION_MODEL=${VISION_MODEL:-}
+      - MAX_UPLOAD_BYTES=${MAX_UPLOAD_BYTES:-}
+      - MAX_PAGES=${MAX_PAGES:-}
+      - MAX_BATCH_FILES=${MAX_BATCH_FILES:-}
+      - JOB_TIMEOUT_SECONDS=${JOB_TIMEOUT_SECONDS:-}
+      - HEAVY_CONCURRENCY=${HEAVY_CONCURRENCY:-}
+      - MAX_QUEUE_DEPTH=${MAX_QUEUE_DEPTH:-}
+      - RASTER_DPI=${RASTER_DPI:-}
+      - TEMP_DIR=${TEMP_DIR:-}
+      - SWEEP_INTERVAL_SECONDS=${SWEEP_INTERVAL_SECONDS:-}
+      - TEMP_TTL_SECONDS=${TEMP_TTL_SECONDS:-}
+      - LOG_LEVEL=${LOG_LEVEL:-}
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)throw 1}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
