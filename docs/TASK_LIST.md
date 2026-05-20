@@ -73,12 +73,12 @@ _Satisfies: [MVP5]_
 
 _Satisfies: [MVP6]_
 
-- [ ] Implement `lib/detect/footer.ts` with a default-crop function (bottom 12% of last page)
-- [ ] Implement the optional smart-boundary scan (row-scan from the bottom up)
-- [ ] Return a normalized bbox plus detector tag and a note "same region appears on N total pages" when applicable
-- [ ] Wire into the orchestrator
-- [ ] Emit `region_ready` SSE event
-- [ ] Commit: `feat(detect): footer extraction`
+- [x] Implement `lib/detect/footer.ts` with a default-crop function (bottom 12% of last page)
+- [x] Implement the optional smart-boundary scan (row-scan from the bottom up)
+- [x] Return a normalized bbox plus detector tag and a note "same region appears on N total pages" when applicable
+- [x] Wire into the orchestrator
+- [x] Emit `region_ready` SSE event
+- [x] Commit: `feat(detect): footer extraction`
 
 ### 7. Signature heuristic
 

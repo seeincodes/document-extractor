@@ -240,7 +240,7 @@ describe('GET /api/extract/[jobId]/stream — default stages end-to-end', () => 
     expect(eventNames).toContain('region_ready');
     expect(eventNames.at(-1)).toBe('done');
 
-    // Letterhead is implemented; footer and signature are placeholders.
+    // Letterhead and footer are implemented; signature is still a placeholder.
     const regions = events.flatMap((e) =>
       e.event === 'region_ready' ? [e.data] : [],
     );
@@ -255,7 +255,7 @@ describe('GET /api/extract/[jobId]/stream — default stages end-to-end', () => 
     }
 
     const footer = regions.find((r) => r.region === 'footer');
-    expect(footer?.status).toBe('not_found');
+    expect(footer?.status).toBe('detected');
 
     const signature = regions.find((r) => r.region === 'signature');
     expect(signature?.status).toBe('not_found');

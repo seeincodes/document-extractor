@@ -32,6 +32,11 @@ export type RegionResult =
       pngPath?: string;
       detector: 'heuristic' | 'vision';
       confidence: number;
+      // Free-form context about the detection. The footer detector uses this
+      // to record that the same band appears on N total pages — a hint the
+      // UI can surface to distinguish a single-page footer from a recurring
+      // page-number band.
+      note?: string;
     }
   | { status: 'not_found'; reason: string }
   | {
