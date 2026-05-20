@@ -89,11 +89,21 @@ describe('cropPageToPng', () => {
     ).rejects.toThrow(/dimensions/i);
   });
 
-  it('rejects a bbox that extends outside the page', async () => {
+  it('clamps a bbox with floating-point epsilon overshoot to the page extent', async () => {
+    // Real detectors produce bbox.y + bbox.h slightly over 1.0 due to FP
+    // arithmetic. The crop must succeed (not throw), returning a slightly
+    // smaller PNG clamped to the page edge.
     const page = makePage(100, 100);
-    await expect(
-      cropPageToPng(page, { x: 0.5, y: 0.5, w: 0.7, h: 0.7 }),
-    ).rejects.toThrow(/(out of bounds|bounds)/i);
+    const png = await cropPageToPng(page, {
+      x: 0,
+      y: 0,
+      w: 1.0000000000000002,
+      h: 0.5,
+    });
+    expect(startsWith(png, PNG_MAGIC)).toBe(true);
+    const meta = await sharp(png).metadata();
+    expect(meta.width).toBe(100); // clamped to page width
+    expect(meta.height).toBe(50);
   });
 
   it('rejects negative bbox coordinates', async () => {
@@ -133,6 +143,22 @@ describe('pngToJpeg', () => {
     await expect(pngToJpeg(png, -10)).resolves.toBeInstanceOf(Buffer);
     await expect(pngToJpeg(png, 250)).resolves.toBeInstanceOf(Buffer);
     await expect(pngToJpeg(png, 42.7)).resolves.toBeInstanceOf(Buffer);
+  });
+
+  it('falls back to the default quality when given NaN', async () => {
+    const png = await cropPageToPng(makePage(50, 50), {
+      x: 0,
+      y: 0,
+      w: 1,
+      h: 1,
+    });
+    // Number('abc') = NaN — route layer may surface that to us.
+    await expect(pngToJpeg(png, Number('abc'))).resolves.toBeInstanceOf(
+      Buffer,
+    );
+    await expect(pngToJpeg(png, Number.POSITIVE_INFINITY)).resolves.toBeInstanceOf(
+      Buffer,
+    );
   });
 
   it('strips alpha (JPEG has no alpha channel)', async () => {

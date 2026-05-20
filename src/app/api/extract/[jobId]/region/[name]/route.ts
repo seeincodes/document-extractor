@@ -44,7 +44,7 @@ export function __resetForTests(overrides: RegionRouteOverrides = {}): void {
 
 function jsonError(
   status: number,
-  code: ExtractErrorCode | 'NOT_FOUND' | 'INVALID_JOB_ID' | 'UNSUPPORTED_REGION',
+  code: ExtractErrorCode,
   message: string,
 ): Response {
   return Response.json({ code, message }, { status });
