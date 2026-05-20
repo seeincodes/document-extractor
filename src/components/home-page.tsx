@@ -2,15 +2,13 @@
 
 import dynamic from 'next/dynamic';
 import { useCallback, useState } from 'react';
+import { FileSearch } from 'lucide-react';
 
 import { ApiErrorBanner } from '@/components/api-error';
 import { JobProgress } from '@/components/job-progress';
 import { RegionCard } from '@/components/region-card';
 import { UploadZone } from '@/components/upload-zone';
 
-// react-pdf imports pdfjs-dist, which touches `DOMMatrix` at module load —
-// that's a browser-only global. Loading it via next/dynamic with ssr: false
-// keeps it out of the server bundle and the prerender pass.
 const PdfPreview = dynamic(
   () => import('@/components/pdf-preview').then((m) => m.PdfPreview),
   { ssr: false },
@@ -74,17 +72,12 @@ export function HomePage() {
   const [uploading, setUploading] = useState(false);
 
   const handleFile = useCallback(async (chosen: File) => {
-    // Reset per-job state on a fresh file.
     setFile(chosen);
     setJobId(null);
     setRegions(INITIAL_REGIONS);
     setApiError(null);
     setUploading(true);
 
-    // TODO: if the user picks a second file while file 1's POST is still in
-    // flight (rare but possible — 200–500ms window), the first call's
-    // setJobId still wins on resolve. Wire an AbortController per upload
-    // and abort the previous fetch when a new file lands.
     const result = await postUpload(chosen);
     setUploading(false);
     if (result.ok) {
@@ -112,20 +105,24 @@ export function HomePage() {
     } else if (event.event === 'error') {
       setApiError(event.data);
     }
-    // stage + done don't need to mutate region state; JobProgress already
-    // owns the visual rendering of stages.
   }, []);
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-6 py-10">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Document Extractor
-        </h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Upload a PDF, DOCX, or image. We&rsquo;ll pull out the letterhead, footer, and signature for
-          you.
-        </p>
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-6 py-12">
+      <header className="space-y-1">
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 items-center justify-center rounded-lg bg-zinc-900 dark:bg-zinc-100">
+            <FileSearch className="size-5 text-white dark:text-zinc-900" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+              Document Extractor
+            </h1>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              Extract letterhead, footer, and signature regions automatically.
+            </p>
+          </div>
+        </div>
       </header>
 
       <UploadZone onFile={handleFile} disabled={uploading} />
@@ -133,24 +130,33 @@ export function HomePage() {
       {apiError ? <ApiErrorBanner error={apiError} /> : null}
 
       {file ? (
-        <section className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <section className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
           <PdfPreview file={file} />
           {jobId ? (
             <JobProgress key={jobId} jobId={jobId} onEvent={handleSseEvent} />
           ) : (
-            <div className="rounded-md border border-zinc-200 bg-zinc-50 p-6 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-              {uploading ? 'Uploading…' : 'Waiting for upload to start.'}
+            <div className="flex items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50/50 p-6 text-sm text-zinc-400 dark:border-zinc-800 dark:bg-zinc-900/30">
+              {uploading ? 'Uploading\u2026' : 'Ready to process'}
             </div>
           )}
         </section>
       ) : null}
 
       {jobId ? (
-        <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <RegionCard region="letterhead" state={regions.letterhead} />
-          <RegionCard region="footer" state={regions.footer} />
-          <RegionCard region="signature" state={regions.signature} />
-        </section>
+        <>
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-zinc-100 dark:bg-zinc-800" />
+            <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500">
+              Extracted Regions
+            </span>
+            <div className="h-px flex-1 bg-zinc-100 dark:bg-zinc-800" />
+          </div>
+          <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <RegionCard region="letterhead" state={regions.letterhead} />
+            <RegionCard region="footer" state={regions.footer} />
+            <RegionCard region="signature" state={regions.signature} />
+          </section>
+        </>
       ) : null}
     </main>
   );
