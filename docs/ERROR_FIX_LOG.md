@@ -41,7 +41,13 @@ Do **not** log:
 
 ## Log
 
-_No errors logged yet._
+### [2026-05-20] Synthetic PDF fixtures render without text under pdfjs Node mode
+
+- **Error:** `samples/clean-letter.pdf`, `samples/tall-letterhead.pdf`, and `samples/no-letterhead.pdf` parse cleanly via `pdfjs-dist`, but when rendered via `@napi-rs/canvas` with our standard `disableFontFace: true` + `useSystemFonts: false` flags (per `docs/MEMO.md`), the text content is silently dropped. Only vector strokes (horizontal rules, the signature path) appear in the output. The letterhead row-scan algorithm in `src/lib/detect/letterhead.ts` therefore can't find a 3-row-thick ink band in the top 35% of these fixtures and falls back to the 18% default.
+- **Context:** Group 5 (letterhead detection) integration tests against the synthetic fixtures. Manual diagnostic confirmed: a per-row scan of `tall-letterhead.pdf`'s top 35% shows only 2 rows with >0.5% ink, both at y≈27.1% (the rule under the letterhead). The rest is fully blank — the company name, address lines, and body text aren't rasterizing.
+- **Root Cause:** The fixture generators (`scripts/generate-clean-letter.js`, `scripts/generate-letterhead-fixtures.js`) declare Type-1 base fonts by name (Helvetica, Times-Italic, etc.) without embedding the font program in the PDF. pdfjs in Node mode cannot fetch system fonts, so the glyphs are dropped. (In browser mode this works because pdfjs uses the host's font stack via `useSystemFonts: true`, but our rasterizer disables that for security/consistency.)
+- **Fix:** **Not fixed in this group.** Algorithm correctness is verified via synthetic `Uint8ClampedArray` buffers in `src/lib/detect/letterhead.test.ts`. PDF-integration tests assert only the graceful-fallback path (returns the 18% default when no ink band is found). When samples include embedded fonts — or a real-world fixture lands in `samples/.local/` — re-enable the strict integration assertions.
+- **Prevention:** Future detectors (footer in group 6, signature in group 7) should follow the same pattern: validate algorithm against synthetic buffers, treat PDF integration tests as "fallback path tolerated" until fonts embed. Long-term fix lives in a future fixture-generator update (either embed a small open-source TTF subset, or replace fixture text with vector-stroked outlines that don't need fonts).
 
 ## Common Issues to Watch For
 
