@@ -101,11 +101,11 @@ _Satisfies: [MVP7], [MVP8]_
 
 _Satisfies: [MVP10]_
 
-- [ ] Implement `lib/extract/crop.ts` that takes a normalized bbox + the rasterized color page and writes a PNG to the temp dir
-- [ ] Implement `app/api/extract/[jobId]/region/[name]/route.ts` (GET): serve the cached PNG from the temp dir with `Content-Type: image/png`
-- [ ] Support `?format=jpeg&quality=N` query params (re-encode from the original color buffer on the fly)
-- [ ] Return `404 NOT_FOUND` if the jobId expired; `409 REGION_NOT_DETECTED` if the region had `null` detection
-- [ ] Commit: `feat(api): region download endpoint`
+- [x] Implement `lib/extract/crop.ts` that takes a normalized bbox + the rasterized color page and writes a PNG to the temp dir
+- [x] Implement `app/api/extract/[jobId]/region/[name]/route.ts` (GET): serve the cached PNG from the temp dir with `Content-Type: image/png`
+- [x] Support `?format=jpeg&quality=N` query params (re-encode from the original color buffer on the fly)
+- [x] Return `404 NOT_FOUND` if the jobId expired; `409 REGION_NOT_DETECTED` if the region had `null` detection
+- [x] Commit: `feat(api): region download endpoint`
 
 ### 9. Frontend — upload, preview, results
 

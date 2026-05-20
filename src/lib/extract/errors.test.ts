@@ -35,6 +35,13 @@ describe('toUserMessage', () => {
     ['MALFORMED_PDF', "This PDF couldn't be parsed. It may be corrupted."],
     ['PAGE_LIMIT_EXCEEDED', 'This document has too many pages. The limit is 50.'],
     ['INTERNAL_ERROR', 'Something went wrong on our end. Please try again.'],
+    [
+      'REGION_NOT_DETECTED',
+      'This region could not be detected on the document.',
+    ],
+    ['NOT_FOUND', 'The requested job or region could not be found.'],
+    ['INVALID_JOB_ID', 'The job ID has an invalid format.'],
+    ['UNSUPPORTED_REGION', 'The requested region is not one we extract.'],
   ];
 
   for (const [code, message] of expectations) {

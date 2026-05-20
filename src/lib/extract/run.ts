@@ -6,8 +6,23 @@ import {
   toUserMessage,
   type ExtractErrorCode,
 } from './errors';
-import type { JobStage, JobStore, RegionResult } from './jobStore';
+import type {
+  JobStage,
+  JobStore,
+  NormalizedBBox,
+  RegionResult,
+} from './jobStore';
 import type { RegionName, SseEmitter, SseEvent } from './sse';
+
+// Writes a region's crop to disk and returns the absolute path. Injected via
+// RunJobInput so the route handler can supply the production implementation
+// (which uses lib/extract/crop.ts + the per-job temp dir) while tests can
+// substitute a fake that returns a deterministic path.
+export type MaterializeRegion = (
+  region: RegionName,
+  bbox: NormalizedBBox,
+  page: RasterizedPage,
+) => Promise<string>;
 
 export interface Stages {
   rasterize(bytes: Uint8Array): Promise<RasterizedPage[]>;
@@ -32,6 +47,10 @@ export interface RunJobInput {
   emitter: SseEmitter;
   stages: Stages;
   store: JobStore;
+  // Optional: writes a region's crop to disk and returns the path. When
+  // absent, regions are detected but no PNG is written — useful for the
+  // dev/test paths where the route's materializer hasn't been wired yet.
+  materializeRegion?: MaterializeRegion;
 }
 
 const PROGRESS: Record<JobStage, number> = {
@@ -46,8 +65,20 @@ const PROGRESS: Record<JobStage, number> = {
   failed: 1,
 };
 
+// Which page of the document each region's bbox refers to. Letterhead is
+// always on page 1; footer and signature are on the last page (per the
+// MEMO's Stage 4 design).
+function pageForRegion(
+  region: RegionName,
+  pages: RasterizedPage[],
+): RasterizedPage | undefined {
+  if (region === 'letterhead') return pages[0];
+  return pages.at(-1);
+}
+
 export async function runJob(input: RunJobInput): Promise<void> {
-  const { jobId, bytes, fileKind, emitter, stages, store } = input;
+  const { jobId, bytes, fileKind, emitter, stages, store, materializeRegion } =
+    input;
 
   const advance = (stage: JobStage): void => {
     store.update(jobId, { stage });
@@ -57,38 +88,57 @@ export async function runJob(input: RunJobInput): Promise<void> {
     });
   };
 
-  const finishRegion = (
-    region: RegionName,
-    result: RegionResult | null,
-  ): void => {
-    if (!result) {
-      const reason = 'no candidate region met confidence threshold';
-      store.update(jobId, { regions: { [region]: { status: 'not_found', reason } } });
-      emitter.emit({
-        event: 'region_ready',
-        data: { region, status: 'not_found', reason },
-      });
-      return;
-    }
-    store.update(jobId, { regions: { [region]: result } });
-    if (result.status === 'detected' || result.status === 'unverified') {
-      emitter.emit({
-        event: 'region_ready',
-        data: {
-          region,
-          status: result.status,
-          detector: result.detector,
-          confidence: result.confidence,
-          url: `/api/extract/${jobId}/region/${region}`,
-        },
-      });
-      return;
-    }
-    // status === 'not_found' from a detector that returned a typed not_found
-    // result (rather than null) — surface the upstream reason.
+  const emitNotFound = (region: RegionName, reason: string): void => {
+    store.update(jobId, { regions: { [region]: { status: 'not_found', reason } } });
     emitter.emit({
       event: 'region_ready',
-      data: { region, status: 'not_found', reason: result.reason },
+      data: { region, status: 'not_found', reason },
+    });
+  };
+
+  const finishRegion = async (
+    region: RegionName,
+    result: RegionResult | null,
+    pages: RasterizedPage[],
+  ): Promise<void> => {
+    if (!result) {
+      emitNotFound(region, 'no candidate region met confidence threshold');
+      return;
+    }
+    if (result.status === 'not_found') {
+      emitNotFound(region, result.reason);
+      return;
+    }
+
+    // Materialize the crop to disk if a materializer was provided. A failure
+    // here downgrades the region to not_found rather than killing the job —
+    // a missing crop is a soft failure the UI can render distinctly.
+    let materialized = result;
+    if (materializeRegion) {
+      const page = pageForRegion(region, pages);
+      if (!page) {
+        emitNotFound(region, 'no page available to crop from');
+        return;
+      }
+      try {
+        const pngPath = await materializeRegion(region, result.bbox, page);
+        materialized = { ...result, pngPath };
+      } catch {
+        emitNotFound(region, 'failed to materialize region crop');
+        return;
+      }
+    }
+
+    store.update(jobId, { regions: { [region]: materialized } });
+    emitter.emit({
+      event: 'region_ready',
+      data: {
+        region,
+        status: materialized.status,
+        detector: materialized.detector,
+        confidence: materialized.confidence,
+        url: `/api/extract/${jobId}/region/${region}`,
+      },
     });
   };
 
@@ -105,13 +155,25 @@ export async function runJob(input: RunJobInput): Promise<void> {
     const pages = await stages.rasterize(bytes);
 
     advance('detecting_letterhead');
-    finishRegion('letterhead', await stages.detectLetterhead(pages, jobId));
+    await finishRegion(
+      'letterhead',
+      await stages.detectLetterhead(pages, jobId),
+      pages,
+    );
 
     advance('detecting_footer');
-    finishRegion('footer', await stages.detectFooter(pages, jobId));
+    await finishRegion(
+      'footer',
+      await stages.detectFooter(pages, jobId),
+      pages,
+    );
 
     advance('detecting_signature');
-    finishRegion('signature', await stages.detectSignature(pages, jobId));
+    await finishRegion(
+      'signature',
+      await stages.detectSignature(pages, jobId),
+      pages,
+    );
 
     // Terminal stage: update the store but emit `done` rather than `stage`,
     // matching the wire format in docs/USER_FLOW.md.

@@ -202,8 +202,9 @@ describe('GET /api/extract/[jobId]/stream — default stages end-to-end', () => 
   // buffers, and will move here once samples include embedded fonts.
 
   it('emits the full SSE sequence for samples/clean-letter.pdf (plumbing only)', async () => {
-    const { readFileSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
+    const { mkdtempSync, readFileSync, rmSync } = await import('node:fs');
+    const { resolve, join: pathJoin } = await import('node:path');
+    const { tmpdir } = await import('node:os');
 
     const REAL_JOB_ID = 'j_e2e_clean';
     const samplePath = resolve(
@@ -212,11 +213,14 @@ describe('GET /api/extract/[jobId]/stream — default stages end-to-end', () => 
     );
     const bytes = new Uint8Array(readFileSync(samplePath));
 
+    // Materializer needs a real on-disk temp dir to write the region PNGs.
+    const realTempDir = mkdtempSync(pathJoin(tmpdir(), 'extractor-e2e-test-'));
+
     const store = createJobStore();
     store.create({
       jobId: REAL_JOB_ID,
       originalFilename: 'clean-letter.pdf',
-      tempDir: '/path/to/extractor-e2e-test',
+      tempDir: realTempDir,
       receivedAt: 1_700_000_000_000,
     });
     __resetForTests({
@@ -264,5 +268,7 @@ describe('GET /api/extract/[jobId]/stream — default stages end-to-end', () => 
     const signature = regions.find((r) => r.region === 'signature');
     expect(signature).toBeDefined();
     expect(['detected', 'not_found']).toContain(signature?.status);
+
+    rmSync(realTempDir, { recursive: true, force: true });
   }, 15_000);
 });
