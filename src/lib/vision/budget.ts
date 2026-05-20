@@ -5,7 +5,7 @@ export class VisionBudget {
   private readonly limit: number;
 
   constructor(limitUsd?: number) {
-    this.limit = limitUsd ?? Number(process.env['VISION_BUDGET_USD_PER_REQUEST']) || DEFAULT_BUDGET_USD;
+    this.limit = limitUsd ?? (Number(process.env['VISION_BUDGET_USD_PER_REQUEST']) || DEFAULT_BUDGET_USD);
   }
 
   get remaining(): number {
