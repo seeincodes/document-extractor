@@ -37,7 +37,7 @@ _Satisfies: [MVP4]_
 
 _Satisfies: [MVP1], [MVP2], [MVP11]_
 
-- [ ] Install `file-type`
+- [x] Install `file-type`
 - [ ] Implement `lib/io/validate.ts` with magic-byte detection for PDF, DOCX, PNG, JPEG (and TIFF/WEBP as tier-2)
 - [ ] Implement `lib/io/tempDir.ts` with `createJobTempDir(jobId)` and `cleanupTempDir(jobId)` helpers
 - [ ] Implement `lib/extract/jobStore.ts` with in-memory `Map<jobId, JobRecord>` and the JobRecord shape from `docs/TECH_STACK.md`

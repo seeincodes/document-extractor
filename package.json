@@ -19,6 +19,7 @@
     "@napi-rs/canvas": "^0.1.100",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "file-type": "^19.6.0",
     "lucide-react": "^1.16.0",
     "next": "16.2.6",
     "pdfjs-dist": "^4.10.38",
