@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { rasterizePages, type RasterizeError } from './pdfjs';
+import { type ExtractError } from '../extract/errors';
+import { rasterizePages } from './pdfjs';
 
 const CLEAN_LETTER = resolve(__dirname, '../../../samples/clean-letter.pdf');
 const ENCRYPTED = resolve(__dirname, '../../../tests/fixtures/encrypted.pdf');
@@ -42,16 +43,16 @@ describe('rasterizePages', () => {
 
   it('throws ENCRYPTED_PDF when the input is password-protected', async () => {
     await expect(rasterizePages(readBytes(ENCRYPTED))).rejects.toMatchObject({
-      name: 'RasterizeError',
+      name: 'ExtractError',
       code: 'ENCRYPTED_PDF',
-    } satisfies Partial<RasterizeError>);
+    } satisfies Partial<ExtractError>);
   });
 
   it('throws MALFORMED_PDF when the input is not a valid PDF body', async () => {
     await expect(rasterizePages(readBytes(MALFORMED))).rejects.toMatchObject({
-      name: 'RasterizeError',
+      name: 'ExtractError',
       code: 'MALFORMED_PDF',
-    } satisfies Partial<RasterizeError>);
+    } satisfies Partial<ExtractError>);
   });
 
   it('throws PAGE_LIMIT_EXCEEDED before rendering when page count exceeds the cap', async () => {
@@ -60,8 +61,8 @@ describe('rasterizePages', () => {
     await expect(
       rasterizePages(readBytes(CLEAN_LETTER), { maxPages: 0 }),
     ).rejects.toMatchObject({
-      name: 'RasterizeError',
+      name: 'ExtractError',
       code: 'PAGE_LIMIT_EXCEEDED',
-    } satisfies Partial<RasterizeError>);
+    } satisfies Partial<ExtractError>);
   });
 });

@@ -41,7 +41,7 @@ _Satisfies: [MVP1], [MVP2], [MVP11]_
 - [ ] Implement `lib/io/validate.ts` with magic-byte detection for PDF, DOCX, PNG, JPEG (and TIFF/WEBP as tier-2)
 - [ ] Implement `lib/io/tempDir.ts` with `createJobTempDir(jobId)` and `cleanupTempDir(jobId)` helpers
 - [ ] Implement `lib/extract/jobStore.ts` with in-memory `Map<jobId, JobRecord>` and the JobRecord shape from `docs/TECH_STACK.md`
-- [ ] Implement `lib/extract/errors.ts` with the typed error code constants and a `toUserMessage(code)` helper
+- [x] Implement `lib/extract/errors.ts` with the typed error code constants and a `toUserMessage(code)` helper
 - [ ] Implement `app/api/extract/route.ts` (POST): parse multipart, validate, write upload to temp dir, create JobRecord, return `{ jobId }` with 202
 - [ ] Set Next.js body size limit to 25MB via route config
 - [ ] Return 400 `UNSUPPORTED_FILE_TYPE` and `FILE_TOO_LARGE` cleanly
