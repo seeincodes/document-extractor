@@ -313,3 +313,35 @@ _Satisfies: code-quality signal (not strictly required by the brief)_
 - [ ] Verify all sample documents are committed and load correctly
 - [ ] Verify the healthcheck reports `ok` in the running container
 - [ ] Submit
+
+---
+
+## Stretch (beyond brief — attempt only if MVP + Polish finish with time)
+
+These groups extend the brief's "extract the signature" (singular) to "extract all signatures, with attributed names." They are deliberately scoped *after* the test suite and docs so the MVP is never at risk. Group 27 depends on group 26.
+
+### 26. Stretch: multiple signature regions
+
+_Satisfies: extension beyond brief_
+
+- [ ] Schema: rename `signature?: RegionResult` → `signatures: RegionResult[]` in `JobRecord`; update the SSE `region_ready` payload shape; update `docs/TECH_STACK.md` and `docs/USER_FLOW.md`
+- [ ] `lib/detect/signature.ts` returns all qualifying components (not just the largest), sorted by confidence descending
+- [ ] Widen the scan area from "bottom 30% of last page" to the full last page (the bottom-30% assumption holds for single-signatory letters; legal correspondence routinely places a "SO ORDERED" judicial signature mid-page)
+- [ ] `app/api/extract/[jobId]/region/signature/[index]/route.ts` (GET) — index-based PNG retrieval
+- [ ] UI renders one card per detected signature; empty-state card "no signatures detected" when the array is empty
+- [ ] Add `samples/multi-signatory-letter.pdf` exercising 2+ signatures on one page
+- [ ] Commit: `feat: multiple signature support`
+
+### 27. Stretch: signature name attribution
+
+_Satisfies: extension beyond brief; depends on group 26_
+
+- [ ] Implement `lib/detect/signatureName.ts` exporting `attributeName(bbox, pageImage, opts)` returning `{ value, source, confidence } | null`
+- [ ] Caption heuristic: OCR a band ~15% of page height directly below the signature bbox; regex-match a name line (handles `J. Patrick Lannon`, `Hon. Gregory R. Gilbert, J.S.C.`, suffixes `Esq.`, `M.D.`, `Ph.D.`)
+- [ ] Closing-phrase heuristic: OCR a band above the bbox; look for `Very truly yours,`, `Respectfully yours,`, `Sincerely,`, then take the following line(s)
+- [ ] Combine the two signals; pick the higher-confidence result; ties go to caption
+- [ ] Vision fallback: when both heuristics return confidence < 0.5, send bbox + a 30%-tall context band to Claude vision (reuse `lib/vision/budget.ts`); tag `source: 'vision'`
+- [ ] Extend `RegionResult` for signatures with `name?: { value, source: 'caption' | 'closing' | 'vision', confidence }`
+- [ ] UI displays the name on each signature card; explicit "name not detected" state when `name` is absent
+- [ ] Integration test: the multi-signatory fixture must extract at least one name correctly via heuristics alone (vision-disabled run)
+- [ ] Commit: `feat: signature name attribution`

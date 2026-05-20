@@ -76,6 +76,7 @@ extractor-*/
 *.tar.gz
 
 # Sample document artifacts the user may drop locally
+# (real-world fixtures with PII / live signatures live here; tests skip if absent)
 samples/.local/
 
 # Skill lifecycle observations (not used in this project but reserved)
