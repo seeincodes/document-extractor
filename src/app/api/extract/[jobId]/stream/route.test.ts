@@ -184,3 +184,80 @@ describe('GET /api/extract/[jobId]/stream', () => {
     expect(captured.emitter?.closed).toBe(true);
   });
 });
+
+describe('GET /api/extract/[jobId]/stream — default stages end-to-end', () => {
+  // This test exercises the real runJob + defaultStages pipeline on a real
+  // PDF. No fakeRunJob override. The footer and signature detectors are
+  // intentional placeholders (return null) until groups 6 and 7 land — they
+  // surface as region_ready events with status: 'not_found'.
+  //
+  // The letterhead detector runs in 'smart' mode but the synthetic fixture
+  // doesn't embed fonts, so smartScan finds no qualifying ink band and the
+  // detector falls back to its default-crop result (confidence = 0.5,
+  // bbox.h = 0.18). This test therefore proves the *plumbing* — the stream
+  // route invokes defaultStages, the orchestrator walks every region, the
+  // SSE wire format survives a real pdfjs rasterization — but it does NOT
+  // prove the smart-scan algorithm produces a real detection on real input.
+  // That guarantee lives in lib/detect/letterhead.test.ts on synthetic
+  // buffers, and will move here once samples include embedded fonts.
+
+  it('emits the full SSE sequence for samples/clean-letter.pdf (plumbing only)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+
+    const REAL_JOB_ID = 'j_e2e_clean';
+    const samplePath = resolve(
+      __dirname,
+      '../../../../../../samples/clean-letter.pdf',
+    );
+    const bytes = new Uint8Array(readFileSync(samplePath));
+
+    const store = createJobStore();
+    store.create({
+      jobId: REAL_JOB_ID,
+      originalFilename: 'clean-letter.pdf',
+      tempDir: '/path/to/extractor-e2e-test',
+      receivedAt: 1_700_000_000_000,
+    });
+    __resetForTests({
+      store,
+      readUploadBytes: async () => bytes,
+      fileKindByJobId: () => 'pdf',
+    });
+
+    const req = new Request(`http://test/api/extract/${REAL_JOB_ID}/stream`);
+    const res = await GET(req, {
+      params: Promise.resolve({ jobId: REAL_JOB_ID }),
+    });
+    expect(res.status).toBe(200);
+    if (!res.body) throw new Error('no body');
+
+    const events = await drain(res.body);
+    const eventNames = events.map((e) => e.event);
+
+    // The orchestrator must walk all three detection stages and terminate.
+    expect(eventNames).toContain('stage');
+    expect(eventNames).toContain('region_ready');
+    expect(eventNames.at(-1)).toBe('done');
+
+    // Letterhead is implemented; footer and signature are placeholders.
+    const regions = events.flatMap((e) =>
+      e.event === 'region_ready' ? [e.data] : [],
+    );
+    const letterhead = regions.find((r) => r.region === 'letterhead');
+    expect(letterhead?.status).toBe('detected');
+    // Pin the fallback signature so the test fails — loudly — the day the
+    // fixture starts rendering fonts and smart-scan begins producing a real
+    // detection. That's the cue to upgrade this assertion to expect
+    // confidence > 0.5 and bbox.h in the smart-scan window.
+    if (letterhead?.status === 'detected') {
+      expect(letterhead.confidence).toBe(0.5);
+    }
+
+    const footer = regions.find((r) => r.region === 'footer');
+    expect(footer?.status).toBe('not_found');
+
+    const signature = regions.find((r) => r.region === 'signature');
+    expect(signature?.status).toBe('not_found');
+  }, 15_000);
+});

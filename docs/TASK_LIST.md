@@ -62,12 +62,12 @@ _Satisfies: [MVP11] (in conjunction with the pipeline)_
 
 _Satisfies: [MVP5]_
 
-- [ ] Implement `lib/detect/letterhead.ts` with a default-crop function (top 18% of page 1)
-- [ ] Implement the optional smart-boundary scan (top 35% binarize, row-scan for first ≥80%-white row after an ink band)
-- [ ] Return a normalized bbox `{x, y, w, h}` plus a `detector: 'heuristic'` tag and a coarse confidence score
-- [ ] Wire into the orchestrator after rasterization completes
-- [ ] Emit a `region_ready` SSE event when done
-- [ ] Commit: `feat(detect): letterhead extraction`
+- [x] Implement `lib/detect/letterhead.ts` with a default-crop function (top 18% of page 1)
+- [x] Implement the optional smart-boundary scan (top 35% binarize, row-scan for first ≥80%-white row after an ink band)
+- [x] Return a normalized bbox `{x, y, w, h}` plus a `detector: 'heuristic'` tag and a coarse confidence score
+- [x] Wire into the orchestrator after rasterization completes
+- [x] Emit a `region_ready` SSE event when done
+- [x] Commit: `feat(detect): letterhead extraction`
 
 ### 6. Footer extraction
 

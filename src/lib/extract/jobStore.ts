@@ -20,11 +20,16 @@ export interface NormalizedBBox {
   h: number;
 }
 
+// `pngPath` is optional because detection happens before materialization:
+// the detector produces a bbox + metadata; the orchestrator (or group 8's
+// crop step) writes the PNG to disk and patches the record with the path.
+// While the field is absent the record represents a detected-but-not-yet-
+// cropped region.
 export type RegionResult =
   | {
       status: 'detected';
       bbox: NormalizedBBox;
-      pngPath: string;
+      pngPath?: string;
       detector: 'heuristic' | 'vision';
       confidence: number;
     }
@@ -32,7 +37,7 @@ export type RegionResult =
   | {
       status: 'unverified';
       bbox: NormalizedBBox;
-      pngPath: string;
+      pngPath?: string;
       detector: 'heuristic';
       confidence: number;
       reason: string;
