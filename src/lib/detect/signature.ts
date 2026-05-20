@@ -169,14 +169,19 @@ class UnionFind {
 }
 
 // Pass 1 of two-pass CCL: walk every ink pixel and assign a provisional
-// label based on its top and left neighbors (4-connectivity). Returns the
-// per-pixel label buffer and the union-find that resolves label equivalence.
+// label based on its top and left neighbors (4-connectivity).
+//
+// INVARIANT: the returned `provisionalLabels` buffer holds raw labels that
+// may not yet be roots of their equivalence class. Every read of this
+// buffer must be routed through `uf.find(label)` to resolve to the
+// canonical component id. summarizeComponents below is currently the only
+// consumer; any future direct reads of provisional labels are bugs.
 function labelInkPixels(
   mask: Uint8Array,
   width: number,
   height: number,
-): { labels: Int32Array; uf: UnionFind } {
-  const labels = new Int32Array(width * height);
+): { provisionalLabels: Int32Array; uf: UnionFind } {
+  const provisionalLabels = new Int32Array(width * height);
   const uf = new UnionFind();
 
   for (let y = 0; y < height; y++) {
@@ -184,12 +189,12 @@ function labelInkPixels(
       const idx = y * width + x;
       if ((mask[idx] ?? 255) >= INK_PIXEL_THRESHOLD) continue;
 
-      const above = y > 0 ? labels[idx - width] ?? 0 : 0;
-      const left = x > 0 ? labels[idx - 1] ?? 0 : 0;
-      labels[idx] = pickLabel(above, left, uf);
+      const above = y > 0 ? provisionalLabels[idx - width] ?? 0 : 0;
+      const left = x > 0 ? provisionalLabels[idx - 1] ?? 0 : 0;
+      provisionalLabels[idx] = pickLabel(above, left, uf);
     }
   }
-  return { labels, uf };
+  return { provisionalLabels, uf };
 }
 
 // Decide a pixel's label from its already-labeled neighbors, allocating a
@@ -206,7 +211,7 @@ function pickLabel(above: number, left: number, uf: UnionFind): number {
 // Pass 2: collapse each pixel's provisional label to its union-find root,
 // accumulate per-component bbox and area.
 function summarizeComponents(
-  labels: Int32Array,
+  provisionalLabels: Int32Array,
   uf: UnionFind,
   width: number,
   height: number,
@@ -214,9 +219,9 @@ function summarizeComponents(
   const stats = new Map<number, Component>();
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      const label = labels[y * width + x] ?? 0;
-      if (label === 0) continue;
-      growComponent(stats, uf.find(label), x, y);
+      const provisional = provisionalLabels[y * width + x] ?? 0;
+      if (provisional === 0) continue;
+      growComponent(stats, uf.find(provisional), x, y);
     }
   }
   return Array.from(stats.values());
@@ -245,8 +250,8 @@ function findConnectedComponents(
   width: number,
   height: number,
 ): Component[] {
-  const { labels, uf } = labelInkPixels(mask, width, height);
-  return summarizeComponents(labels, uf, width, height);
+  const { provisionalLabels, uf } = labelInkPixels(mask, width, height);
+  return summarizeComponents(provisionalLabels, uf, width, height);
 }
 
 // ─── Candidate filtering and scoring ───────────────────────────────────────
@@ -276,19 +281,29 @@ function componentToNormalizedBBox(
   };
 }
 
-// Distance from `target`'s bbox to the nearest other component's bbox, in
-// the same pixel coordinate space. Cheap proxy — bbox distance, not pixel
-// distance — but sufficient to rank "isolated" vs "crowded."
-function minBBoxDistanceToOthers(
+// Distance between bbox centroids. Centroids are pixel-space points, so two
+// distinct components always have non-zero distance — even when their
+// bounding boxes overlap. (Bbox-gap distance, the previous formula, zeroed
+// out the isolation signal whenever a signature's bbox overlapped an
+// adjacent component, which routinely happens with cursive descenders
+// dropping into a printed-name line below.)
+function bboxCentroid(c: Component): { x: number; y: number } {
+  return {
+    x: (c.minX + c.maxX) / 2,
+    y: (c.minY + c.maxY) / 2,
+  };
+}
+
+function minCentroidDistanceToOthers(
   target: Component,
   all: Component[],
 ): number {
+  const t = bboxCentroid(target);
   let nearest = Infinity;
   for (const other of all) {
     if (other.id === target.id) continue;
-    const dx = Math.max(0, Math.max(target.minX - other.maxX, other.minX - target.maxX));
-    const dy = Math.max(0, Math.max(target.minY - other.maxY, other.minY - target.maxY));
-    const d = Math.hypot(dx, dy);
+    const o = bboxCentroid(other);
+    const d = Math.hypot(t.x - o.x, t.y - o.y);
     if (d < nearest) nearest = d;
   }
   return nearest === Infinity ? FULL_ISOLATION_PX : nearest;
@@ -310,7 +325,7 @@ function scoreConfidence(
   // distance-transform-based stroke variance adds ~50 LOC for a small
   // accuracy gain. Easy to add later as a third weighted signal.
   const sizeSignal = clamp01(target.area / FULL_AREA_PX);
-  const isolationDistance = minBBoxDistanceToOthers(target, allComponents);
+  const isolationDistance = minCentroidDistanceToOthers(target, allComponents);
   const isolationSignal = clamp01(isolationDistance / FULL_ISOLATION_PX);
   return 0.6 * sizeSignal + 0.4 * isolationSignal;
 }
