@@ -247,8 +247,8 @@ describe('runJob — error path', () => {
   });
 });
 
-describe('runJob — non-PDF inputs (temporary)', () => {
-  it('rejects DOCX with UNSUPPORTED_FILE_TYPE until group 14 wires the convert stage', async () => {
+describe('runJob — DOCX conversion', () => {
+  it('converts DOCX via the convertDocx stage and processes normally', async () => {
     const emitter = createSseEmitter();
     const drain = drainEvents(emitter.stream);
 
@@ -262,11 +262,15 @@ describe('runJob — non-PDF inputs (temporary)', () => {
     });
 
     const events = await drain;
-    const err = events.find((e) => e.event === 'error');
-    expect(err?.event).toBe('error');
-    if (err?.event === 'error') {
-      expect(err.data.code).toBe('UNSUPPORTED_FILE_TYPE');
-    }
+    const stageEvents = events.filter((e) => e.event === 'stage');
+    const stages = stageEvents.map((e) =>
+      e.event === 'stage' ? e.data.stage : null,
+    );
+    expect(stages).toContain('normalizing');
+    expect(stages).toContain('rasterizing');
+
+    const done = events.at(-1);
+    expect(done?.event).toBe('done');
   });
 });
 
