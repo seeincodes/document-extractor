@@ -6,8 +6,8 @@ The scaffold documentation (`docs/`) is the source of truth for _what_ this proj
 
 ## Environment Protection
 
-- **Never modify `.env` without explicit user confirmation.** The committed `.env` is a template with empty values, intentionally checked in so reviewers can see the variable surface area. Real secrets live in `.env.local` (gitignored).
-- **Never commit `.env.local` or any `.env.*.local` file.** Treat their contents as secret.
+- **`.env.example` is the committed template.** It carries empty values for every variable the app reads, so a reviewer can see the variable surface area at a glance. To run locally, `cp .env.example .env` and fill in the values.
+- **Never commit `.env`, `.env.local`, or any `.env.*.local` file.** All of these are gitignored. Treat their contents as secret.
 - **Never display API key values in chat, logs, or commit messages.** If you need to reference one in conversation, say `ANTHROPIC_API_KEY` by name; never paste a value.
 - **Never hardcode secrets.** All secrets are read from environment variables. The only "secret-shaped" string that may appear in source is a placeholder like `<your-anthropic-api-key>` in documentation.
 - **Never log file contents.** Logging may include filename, size, mime type, page count, and processing metadata, but never the bytes of an uploaded document. This is part of our stateless / no-persistence stance.
