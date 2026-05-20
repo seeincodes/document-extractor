@@ -1,36 +1,137 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Document Extractor
 
-## Getting Started
+Upload a document and automatically extract its **letterhead**, **footer**, and **signature** regions. Built with Next.js (App Router) and TypeScript.
 
-First, run the development server:
+## Quick Start
 
 ```bash
+# 1. Install dependencies
+npm install
+
+# 2. Copy environment template
+cp .env.example .env.local
+
+# 3. Start the dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Docker
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+docker compose up
+```
 
-## Learn More
+The app is served on port 3000 with a health check at `/api/health`.
 
-To learn more about Next.js, take a look at the following resources:
+## Architecture
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+src/
+├── app/                    # Next.js App Router pages + API routes
+│   ├── api/
+│   │   ├── extract/        # POST upload, GET SSE stream, GET region PNG
+│   │   │   ├── route.ts              # POST /api/extract — upload
+│   │   │   ├── [jobId]/stream/       # GET — SSE progress stream
+│   │   │   ├── [jobId]/region/[name] # GET — region crop (PNG/JPEG)
+│   │   │   ├── [jobId]/recrop/[name] # POST — re-crop with custom bbox
+│   │   │   ├── [jobId]/zip/          # GET — download all regions as ZIP
+│   │   │   └── batch/                # POST — batch upload (up to 10 files)
+│   │   └── health/         # GET /api/health — liveness probe
+│   └── page.tsx            # Home page (upload zone + results)
+├── components/             # React UI components
+├── lib/
+│   ├── convert/            # DOCX → PDF via headless LibreOffice
+│   ├── detect/             # Region detectors (letterhead, footer, signature)
+│   ├── extract/            # Orchestrator, job store, SSE, crop, errors
+│   ├── io/                 # File validation (magic bytes), temp dirs
+│   ├── ocr/                # Tesseract OCR wrapper
+│   ├── queue/              # p-queue concurrency limiter
+│   ├── rasterize/          # PDF → pages (pdfjs-dist) + image → pages (sharp)
+│   └── vision/             # Claude vision fallback for signature verification
+└── ...
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Key Design Decisions
 
-## Deploy on Vercel
+- **Stateless**: no database, no object storage. Temp files are swept every 5 minutes.
+- **Magic-byte validation**: file types are detected by magic bytes via `file-type`, never by extension.
+- **Signature detection**: connected-components heuristic first, Claude Sonnet vision fallback when confidence < 0.6.
+- **In-process queue**: `p-queue` with concurrency 2 for heavy operations (LibreOffice, Tesseract).
+- **SSE streaming**: real-time progress updates via Server-Sent Events.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Supported File Types
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Type | Extension | Detection |
+|------|-----------|-----------|
+| PDF  | `.pdf`    | Rasterized via pdfjs-dist + @napi-rs/canvas |
+| DOCX | `.docx`   | Converted to PDF via headless LibreOffice |
+| PNG  | `.png`    | Processed directly via sharp |
+| JPEG | `.jpg/.jpeg` | Processed directly via sharp |
+| TIFF | `.tiff/.tif`  | Processed directly via sharp |
+| WebP | `.webp`   | Processed directly via sharp |
+
+**Limits**: 25 MB max upload, 50 pages max (PDF), 10 files max (batch).
+
+## Extracted Regions
+
+| Region     | Source     | Crop Area |
+|-----------|------------|-----------|
+| Letterhead | Page 1     | Top 18% (smart boundary scan) |
+| Footer     | Last page  | Bottom 12% (smart boundary scan) |
+| Signature  | Last page  | Bottom 30% (connected-components heuristic) |
+
+## Environment Variables
+
+Copy `.env.example` to `.env.local`. Key variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ANTHROPIC_API_KEY` | — | Required for vision fallback |
+| `VISION_BUDGET_USD_PER_REQUEST` | `0.05` | Max vision API spend per request |
+| `MAX_UPLOAD_BYTES` | `26214400` | 25 MB |
+| `MAX_PAGES` | `50` | Max PDF pages |
+| `MAX_BATCH_FILES` | `10` | Max files per batch |
+| `JOB_TIMEOUT_SECONDS` | `60` | Per-job timeout |
+| `HEAVY_CONCURRENCY` | `2` | LibreOffice/Tesseract queue concurrency |
+| `LOG_LEVEL` | `info` | Pino log level |
+
+See `.env.example` for the full list.
+
+## Testing
+
+```bash
+# Unit + integration tests (Vitest)
+npm test
+
+# E2E tests (Playwright)
+npx playwright test
+```
+
+## Sample Documents
+
+The `samples/` directory contains synthetic fixture documents:
+
+- `clean-letter.pdf` — single-page letter with all regions
+- `tall-letterhead.pdf` — letterhead extending below the 18% default
+- `no-letterhead.pdf` — negative case (no distinct letterhead)
+- `multi-page-report.pdf` — 3-page report with letterhead, signature, footer
+
+See `samples/README.md` for details.
+
+## Limitations
+
+- **No persistence**: all data is lost on restart. This is by design.
+- **Single-process**: no external queue or broker. Heavy operations (LibreOffice, Tesseract) are limited to 2 concurrent tasks.
+- **Vision fallback requires API key**: without `ANTHROPIC_API_KEY`, low-confidence signatures use heuristic results only.
+- **DOCX conversion requires LibreOffice**: the `soffice` binary must be available on PATH.
+- **OCR requires Tesseract**: the `tesseract` binary must be available on PATH.
+
+## Assumptions
+
+- Documents contain at most one letterhead, footer, and signature each.
+- Letterhead is in the top portion of page 1.
+- Footer is in the bottom portion of the last page.
+- Signature is in the bottom portion of the last page.
+- The signature heuristic looks for connected components that are wider than tall (2:1 to 6:1 aspect ratio).
