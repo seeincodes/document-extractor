@@ -4,7 +4,7 @@ import sharp from 'sharp';
 import type { NormalizedBBox } from '../extract/jobStore';
 import { logger } from '../logger';
 
-import { VisionBudget } from './budget';
+import type { VisionBudget } from './budget';
 
 const ESTIMATED_COST_PER_CALL = 0.003;
 
