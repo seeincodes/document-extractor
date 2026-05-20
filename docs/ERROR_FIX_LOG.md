@@ -26,7 +26,7 @@ Log any of the following:
 - Runtime errors that escaped local testing and reproduced
 - Docker / Docker Compose failures that required adjusting the image or compose file
 - API errors from Anthropic, LibreOffice exit codes, Tesseract failures, pdfjs parse errors
-- Database / storage errors *(not applicable — this app is stateless)*
+- Database / storage errors _(not applicable — this app is stateless)_
 - Deployment errors
 - Anything that took more than 5 minutes to diagnose
 
@@ -41,7 +41,7 @@ Do **not** log:
 
 ## Log
 
-*No errors logged yet.*
+_No errors logged yet._
 
 ## Common Issues to Watch For
 
@@ -92,5 +92,5 @@ These are documented preemptively based on the chosen tech stack. They are the t
 
 ### TypeScript / build
 
-- **`exactOptionalPropertyTypes` interaction with React props** — `prop?: string` is *not* assignable to `prop: string | undefined`. Be explicit in component prop types.
+- **`exactOptionalPropertyTypes` interaction with React props** — `prop?: string` is _not_ assignable to `prop: string | undefined`. Be explicit in component prop types.
 - **`noUncheckedIndexedAccess` flags `array[0]` as `T | undefined`** — fix with explicit length checks or destructuring with a default. Don't disable the flag.

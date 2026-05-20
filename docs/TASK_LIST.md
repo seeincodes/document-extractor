@@ -9,11 +9,12 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 ## Phase 1: MVP
 
 ### 1. Project scaffold and tooling
-*Satisfies: prerequisite for everything*
+
+_Satisfies: prerequisite for everything_
 
 - [x] Initialize Next.js 15 App Router app with TypeScript template
 - [x] Configure `tsconfig.json` with `strict: true`, `noUncheckedIndexedAccess: true`, `exactOptionalPropertyTypes: true`
-- [ ] Configure ESLint (`@typescript-eslint`, `eslint-plugin-react`, `eslint-plugin-react-hooks`) and Prettier with project config
+- [x] Configure ESLint (`@typescript-eslint`, `eslint-plugin-react`, `eslint-plugin-react-hooks`) and Prettier with project config
 - [ ] Add `npm run typecheck` (`tsc --noEmit`), `npm run lint`, `npm run format` scripts
 - [ ] Create empty `lib/extract/`, `lib/rasterize/`, `lib/detect/`, `lib/convert/`, `lib/ocr/`, `lib/vision/`, `lib/queue/`, `lib/io/` directories with `.gitkeep`
 - [ ] Add Tailwind CSS v4 + PostCSS configuration; verify a styled component renders
@@ -21,7 +22,8 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 - [ ] Commit: `chore: scaffold next.js app and tooling`
 
 ### 2. PDF rasterization
-*Satisfies: [MVP4]*
+
+_Satisfies: [MVP4]_
 
 - [ ] Install `pdfjs-dist` and `@napi-rs/canvas`
 - [ ] Implement `lib/rasterize/pdfjs.ts` exporting `PageRasterizer` interface and `rasterizePages(buffer, opts)` returning per-page color + greyscale buffers at 200 DPI
@@ -32,7 +34,8 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 - [ ] Commit: `feat(rasterize): pdf to 200-dpi image buffers`
 
 ### 3. File validation and upload route
-*Satisfies: [MVP1], [MVP2], [MVP11]*
+
+_Satisfies: [MVP1], [MVP2], [MVP11]_
 
 - [ ] Install `file-type`
 - [ ] Implement `lib/io/validate.ts` with magic-byte detection for PDF, DOCX, PNG, JPEG (and TIFF/WEBP as tier-2)
@@ -45,7 +48,8 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 - [ ] Commit: `feat(api): upload validation and job creation`
 
 ### 4. SSE progress streaming
-*Satisfies: [MVP11] (in conjunction with the pipeline)*
+
+_Satisfies: [MVP11] (in conjunction with the pipeline)_
 
 - [ ] Implement `lib/extract/sse.ts` with a thin event-emitter wrapper that produces a `ReadableStream` for App Router routes
 - [ ] Define event types: `stage`, `region_ready`, `done`, `error` (typed shapes documented in `docs/USER_FLOW.md`)
@@ -55,7 +59,8 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 - [ ] Commit: `feat(api): sse progress events`
 
 ### 5. Letterhead extraction
-*Satisfies: [MVP5]*
+
+_Satisfies: [MVP5]_
 
 - [ ] Implement `lib/detect/letterhead.ts` with a default-crop function (top 18% of page 1)
 - [ ] Implement the optional smart-boundary scan (top 35% binarize, row-scan for first ≥80%-white row after an ink band)
@@ -65,7 +70,8 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 - [ ] Commit: `feat(detect): letterhead extraction`
 
 ### 6. Footer extraction
-*Satisfies: [MVP6]*
+
+_Satisfies: [MVP6]_
 
 - [ ] Implement `lib/detect/footer.ts` with a default-crop function (bottom 12% of last page)
 - [ ] Implement the optional smart-boundary scan (row-scan from the bottom up)
@@ -75,7 +81,8 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 - [ ] Commit: `feat(detect): footer extraction`
 
 ### 7. Signature heuristic
-*Satisfies: [MVP7], [MVP8]*
+
+_Satisfies: [MVP7], [MVP8]_
 
 - [ ] Install `sharp`
 - [ ] Implement `lib/detect/signature.ts` exporting `detectSignature(pages, opts)`:
@@ -91,7 +98,8 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 - [ ] Commit: `feat(detect): signature heuristic`
 
 ### 8. Region cropping and download endpoint
-*Satisfies: [MVP10]*
+
+_Satisfies: [MVP10]_
 
 - [ ] Implement `lib/extract/crop.ts` that takes a normalized bbox + the rasterized color page and writes a PNG to the temp dir
 - [ ] Implement `app/api/extract/[jobId]/region/[name]/route.ts` (GET): serve the cached PNG from the temp dir with `Content-Type: image/png`
@@ -100,7 +108,8 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 - [ ] Commit: `feat(api): region download endpoint`
 
 ### 9. Frontend — upload, preview, results
-*Satisfies: [MVP1], [MVP3], [MVP9], [MVP10]*
+
+_Satisfies: [MVP1], [MVP3], [MVP9], [MVP10]_
 
 - [ ] Install `react-dropzone` and `react-pdf`
 - [ ] Implement the home page with a dropzone (max 1 file in MVP — batch comes later)
@@ -114,7 +123,8 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 - [ ] Commit: `feat(ui): upload, preview, and results`
 
 ### 10. Graceful error handling end-to-end
-*Satisfies: [MVP11]*
+
+_Satisfies: [MVP11]_
 
 - [ ] Verify all error codes from `lib/extract/errors.ts` map to user-friendly messages in the UI
 - [ ] Add a global error boundary on the home page
@@ -124,7 +134,8 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 - [ ] Commit: `feat: graceful error handling`
 
 ### 11. First sample document
-*Satisfies: [MVP13]*
+
+_Satisfies: [MVP13]_
 
 - [ ] Author or source a CC0/public-domain single-page letter PDF with clear letterhead, footer, and signature
 - [ ] Place at `samples/clean-letter.pdf`
@@ -133,7 +144,8 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 - [ ] Commit: `docs: add clean-letter sample`
 
 ### 12. Dockerized setup
-*Satisfies: [MVP12]*
+
+_Satisfies: [MVP12]_
 
 - [ ] Author `Dockerfile` based on `node:20-slim`:
   - [ ] Install `libreoffice-core`, `tesseract-ocr`, `tesseract-ocr-eng`, `libfontconfig1`, `libpixman-1-0`, `libcairo2`
@@ -150,7 +162,8 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 ## Phase 2: Polish
 
 ### 13. Vision-model verification fallback
-*Satisfies: [FS1], [FS2], [FS3]*
+
+_Satisfies: [FS1], [FS2], [FS3]_
 
 - [ ] Install `@anthropic-ai/sdk`
 - [ ] Implement `lib/vision/claude.ts` with `verifySignature(candidateImage, opts)` that sends a cropped region to Claude Sonnet vision and asks for a refined normalized bbox
@@ -162,7 +175,8 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 - [ ] Commit: `feat(detect): vision fallback for signatures`
 
 ### 14. DOCX support via LibreOffice
-*Satisfies: [FS4]*
+
+_Satisfies: [FS4]_
 
 - [ ] Install `libreoffice-convert` (or implement a thin shell wrapper around `soffice`)
 - [ ] Implement `lib/convert/libreoffice.ts` with `docxToPdf(buffer, tempDir)` that shells out to `soffice --convert-to pdf --norestore --nolockcheck --nodefault --nofirststartwizard -env:UserInstallation=file:///<unique-dir>`
@@ -173,7 +187,8 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 - [ ] Commit: `feat: docx support via libreoffice`
 
 ### 15. Image input support
-*Satisfies: [FS5]*
+
+_Satisfies: [FS5]_
 
 - [ ] In `lib/extract/run.ts`, branch image inputs (PNG, JPEG, WEBP, TIFF) to skip rasterization
 - [ ] Wrap the image bytes in a "single-page document" shape so the detection functions don't need to know it's not from a PDF
@@ -182,7 +197,8 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 - [ ] Commit: `feat: png/jpeg/webp/tiff inputs`
 
 ### 16. OCR fallback for scanned PDFs
-*Satisfies: [FS7]*
+
+_Satisfies: [FS7]_
 
 - [ ] Install `node-tesseract-ocr`
 - [ ] Implement `lib/ocr/tesseract.ts` with `ocrPage(imageBuffer)` returning text + a confidence score
@@ -193,7 +209,8 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 - [ ] Commit: `feat: ocr fallback for scanned pdfs`
 
 ### 17. Adjustable crop UI
-*Satisfies: [FS8], [FS9]*
+
+_Satisfies: [FS8], [FS9]_
 
 - [ ] Install `react-easy-crop`
 - [ ] Wrap each region card with `react-easy-crop` pre-filled with the auto-detected bbox
@@ -203,7 +220,8 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 - [ ] Commit: `feat(ui): adjustable crop per region`
 
 ### 18. Batch upload and ZIP download
-*Satisfies: [FS10], [FS11], [FS12], [FS13]*
+
+_Satisfies: [FS10], [FS11], [FS12], [FS13]_
 
 - [ ] Install `archiver`
 - [ ] Update dropzone to accept up to `MAX_BATCH_FILES` files
@@ -216,7 +234,8 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 - [ ] Commit: `feat: batch upload and zip download`
 
 ### 19. JPEG output and quality parameter
-*Satisfies: [FS14]*
+
+_Satisfies: [FS14]_
 
 - [ ] In `app/api/extract/[jobId]/region/[name]/route.ts`, parse `?format=jpeg&quality=N`
 - [ ] When JPEG is requested, re-encode from the original color buffer (cached in the temp dir) rather than transcoding the PNG
@@ -224,7 +243,8 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 - [ ] Commit: `feat(api): jpeg output with quality control`
 
 ### 20. Healthcheck endpoint and structured logging
-*Satisfies: [FS18], [FS19]*
+
+_Satisfies: [FS18], [FS19]_
 
 - [ ] Install `pino` and `pino-pretty` (dev-only for human-readable local logs)
 - [ ] Implement `app/api/health/route.ts` returning `{ status, libreoffice, tesseract, freeDiskMB, queueDepth, uptimeSeconds }`
@@ -239,7 +259,8 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 ## Phase 3: Final
 
 ### 21. Test suite
-*Satisfies: [FS15], [FS16], [FS17]*
+
+_Satisfies: [FS15], [FS16], [FS17]_
 
 - [ ] Install `vitest`, `@vitest/coverage-v8`, `supertest`, `@playwright/test`
 - [ ] Author 9 unit tests per the catalog in `docs/TESTING_STRATEGY.md` (signature heuristic × 6, cropping math, file-type validation × 2)
@@ -250,7 +271,8 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 - [ ] Commit: `test: unit, integration, and e2e coverage`
 
 ### 22. Additional sample documents
-*Satisfies: prerequisite for testing varied flows*
+
+_Satisfies: prerequisite for testing varied flows_
 
 - [ ] Author or source `samples/multi-page-report.pdf` (exercises footer-on-every-page logic)
 - [ ] Author or source `samples/scanned-letter.pdf` (exercises OCR fallback)
@@ -259,7 +281,8 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 - [ ] Commit: `docs: additional sample documents`
 
 ### 23. README
-*Satisfies: brief's documentation deliverable*
+
+_Satisfies: brief's documentation deliverable_
 
 - [ ] Author `README.md` with these sections (per `presearch.md` §14):
   - [ ] **Setup and run** — one command (`docker compose up`), npm-script alternative, optional `ANTHROPIC_API_KEY`
@@ -272,7 +295,8 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 - [ ] Commit: `docs: README`
 
 ### 24. CI pipeline
-*Satisfies: code-quality signal (not strictly required by the brief)*
+
+_Satisfies: code-quality signal (not strictly required by the brief)_
 
 - [ ] Author `.github/workflows/ci.yml` per `docs/TESTING_STRATEGY.md` "CI Integration"
 - [ ] Lint, typecheck, test jobs in one runner
@@ -280,6 +304,7 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 - [ ] Commit: `ci: lint, typecheck, test, docker build`
 
 ### 25. Final review and submission pass
+
 - [ ] Run `npm run lint`, `npm run typecheck`, `npm run test`, `npm run test:e2e` — all green
 - [ ] Run `docker compose up` from a clean clone — verify end-to-end
 - [ ] Review every commit message against Conventional Commits style

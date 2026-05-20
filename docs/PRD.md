@@ -31,54 +31,62 @@ The primary audience is the reviewers of the technical assessment — they evalu
 ## Final Submission Features
 
 ### Vision-model verification fallback
+
 - [FS1] When the signature heuristic confidence is < 0.6, the candidate region is sent to Claude Sonnet vision for verification and bbox refinement
 - [FS2] Per-request vision budget capped at $0.05; the API key is read from `ANTHROPIC_API_KEY` and the fallback is silently disabled when absent
 - [FS3] UI displays a small badge per region indicating whether it was detected by the heuristic alone or verified by the vision model
 
 ### Additional input formats
+
 - [FS4] DOCX upload supported via headless LibreOffice → PDF → existing pipeline
 - [FS5] PNG and JPEG uploads supported, treated as single-page documents with the same detection logic applied directly
 - [FS6] Tier-2 formats (DOC, RTF, ODT, WEBP, TIFF) accepted via the same toolchain, listed in README as "also accepted, not extensively tested"
 
 ### Scanned-document OCR
+
 - [FS7] When a PDF page has near-empty extracted text but the rasterized image contains ink, the page is routed through Tesseract 5.x for OCR (used to inform footer detection on scans where text would otherwise be invisible to the boundary scanner)
 
 ### Adjustable crop UI
+
 - [FS8] Each detected region renders inside a `react-easy-crop` widget pre-filled with the auto-detected bounding box; the user can drag/resize before downloading
 - [FS9] The "Download" button re-requests the crop with the user-adjusted bounds in normalized coords
 
 ### Batch upload + ZIP download
+
 - [FS10] The dropzone accepts up to 10 files per batch
 - [FS11] Each file becomes its own job and renders as a row in a results table with per-doc status (queued, processing, done, failed)
 - [FS12] A "Download all as ZIP" button packages every detected region from every successful doc as `batch-{timestamp}/{original-filename}/{region}.png`
 - [FS13] Per-doc errors do not fail the batch; failed docs show their error inline while successful docs remain downloadable
 
 ### JPEG output and quality control
+
 - [FS14] All region endpoints accept `?format=jpeg&quality=85` (or any 1–100 quality value) for smaller downloads
 
 ### Tests
+
 - [FS15] Vitest unit tests for the signature heuristic against ~6 synthetic fixtures, the cropping math, and file-type validation
 - [FS16] Vitest + supertest integration tests for `POST /api/extract` happy path and the main error paths (unsupported file, encrypted PDF, file too large)
 - [FS17] One Playwright E2E test: upload sample PDF, wait for completion, verify all three preview images render, click download on signature
 
 ### Observability
+
 - [FS18] `GET /api/health` returns `{ status, libreoffice: bool, tesseract: bool }`; Docker healthcheck wired up
 - [FS19] Structured `pino` logs emit one line per stage transition with `requestId`, `stage`, `durationMs`, `detector`, `confidence` — no log of file contents
 
 ## Performance Targets
 
-| Metric | Target | Notes |
-|---|---|---|
-| Time-to-first-region for a 1-page PDF | < 3 s on a modern laptop | Letterhead is the fastest; SSE streams it before signature finishes |
-| End-to-end extraction for a 10-page PDF | < 15 s | Bounded by the unbounded sharp/pdfjs steps, not LibreOffice or Tesseract |
-| Hard per-job timeout | 60 s | Job aborts with `TIMEOUT` error |
-| Concurrent heavy jobs (LibreOffice, Tesseract) per process | 2 | In-process `p-queue` |
-| Max queue depth | 10 | Beyond this `POST /api/extract` rejects with `503 SERVICE_BUSY` |
-| Upload size limit | 25 MB | Enforced in the route handler |
-| Page count limit | 50 / document | Rejected before rasterization |
-| Batch size limit | 10 files | Enforced on the batch endpoint |
-| Memory per rasterized A4 page | ~1.8 MB at 200 DPI | Bounds worst-case RAM usage |
-| Vision fallback budget | $0.05 / request | ~16 page-region calls at Claude Sonnet pricing |
+| Metric                                                     | Target                   | Notes                                                                    |
+| ---------------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------ |
+| Time-to-first-region for a 1-page PDF                      | < 3 s on a modern laptop | Letterhead is the fastest; SSE streams it before signature finishes      |
+| End-to-end extraction for a 10-page PDF                    | < 15 s                   | Bounded by the unbounded sharp/pdfjs steps, not LibreOffice or Tesseract |
+| Hard per-job timeout                                       | 60 s                     | Job aborts with `TIMEOUT` error                                          |
+| Concurrent heavy jobs (LibreOffice, Tesseract) per process | 2                        | In-process `p-queue`                                                     |
+| Max queue depth                                            | 10                       | Beyond this `POST /api/extract` rejects with `503 SERVICE_BUSY`          |
+| Upload size limit                                          | 25 MB                    | Enforced in the route handler                                            |
+| Page count limit                                           | 50 / document            | Rejected before rasterization                                            |
+| Batch size limit                                           | 10 files                 | Enforced on the batch endpoint                                           |
+| Memory per rasterized A4 page                              | ~1.8 MB at 200 DPI       | Bounds worst-case RAM usage                                              |
+| Vision fallback budget                                     | $0.05 / request          | ~16 page-region calls at Claude Sonnet pricing                           |
 
 ## Scope Boundaries
 

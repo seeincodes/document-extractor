@@ -2,7 +2,7 @@
 
 This file is the guardrail set for AI agents (Claude Code in particular) working in this repository. It encodes decisions that the project has already made so we don't relitigate them, and it draws bright lines around things that must not change without explicit user approval.
 
-The scaffold documentation (`docs/`) is the source of truth for *what* this project is. This file is the source of truth for *how* to safely work in it.
+The scaffold documentation (`docs/`) is the source of truth for _what_ this project is. This file is the source of truth for _how_ to safely work in it.
 
 ## Environment Protection
 
@@ -17,6 +17,7 @@ The scaffold documentation (`docs/`) is the source of truth for *what* this proj
 When you encounter or fix an error that took non-trivial time to diagnose, append an entry to `docs/ERROR_FIX_LOG.md` using the template at the top of that file.
 
 **Log these:**
+
 - Build failures that took more than 5 minutes to diagnose
 - Runtime errors that escaped local testing
 - Docker / Docker Compose failures requiring image or compose-file changes
@@ -25,6 +26,7 @@ When you encounter or fix an error that took non-trivial time to diagnose, appen
 - Deployment errors
 
 **Do NOT log:**
+
 - Typos and obvious syntax errors
 - ESLint or Prettier warnings — fix them and move on
 - Expected test failures during TDD
@@ -64,9 +66,9 @@ These decisions are settled. Do not switch any of them without explicit user app
 
 ## When in Doubt
 
-- Read `docs/MEMO.md` for *why* a decision was made.
-- Read `docs/PRD.md` for *what* the project must do.
-- Read `docs/TASK_LIST.md` for *which task* to work on next.
+- Read `docs/MEMO.md` for _why_ a decision was made.
+- Read `docs/PRD.md` for _what_ the project must do.
+- Read `docs/TASK_LIST.md` for _which task_ to work on next.
 - Read `docs/USER_FLOW.md` for the API and UI contract.
 - Read `docs/TECH_STACK.md` for the canonical list of dependencies, versions, and environment variables.
 - Read `docs/ERROR_FIX_LOG.md` for any error similar to one you're hitting now.

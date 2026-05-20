@@ -1,0 +1,15 @@
+node_modules
+.next
+out
+build
+dist
+coverage
+playwright-report
+test-results
+package-lock.json
+*.tsbuildinfo
+next-env.d.ts
+public
+samples
+docs/full-stack-technical-assessment.md
+docs/presearch.md

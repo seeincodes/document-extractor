@@ -24,16 +24,16 @@ Rationale: this is a backend-logic-heavy app, and most of the interesting behavi
 
 ## Coverage Targets
 
-| Layer | Target % | Tool | Notes |
-|---|---|---|---|
-| `lib/detect/*` | 80%+ | Vitest + V8 coverage | Highest-value code; deterministic input → deterministic output |
-| `lib/rasterize/*` | 60%+ | Vitest | Mostly thin wrappers around pdfjs; cover the public interface and error paths |
-| `lib/io/*` | 80%+ | Vitest | File-type validation must be airtight (security boundary) |
-| `lib/queue/*`, `lib/extract/*` | 60%+ | Vitest | Orchestration code; lower coverage acceptable, but the queue's concurrency limit is worth a dedicated test |
-| `app/api/*` route handlers | covered via integration | Vitest + supertest | Don't unit-test route handlers in isolation — they're thin orchestrators |
-| `lib/vision/*` | mocked | Vitest | Don't hit the real Anthropic API in tests; mock the SDK |
-| `lib/convert/*`, `lib/ocr/*` | smoke only | Vitest | Real LibreOffice/Tesseract in CI is slow; one smoke test each per CI environment |
-| Frontend components | not formally targeted | — | E2E covers the integration; per-component unit tests are out of scope for the time budget |
+| Layer                          | Target %                | Tool                 | Notes                                                                                                      |
+| ------------------------------ | ----------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `lib/detect/*`                 | 80%+                    | Vitest + V8 coverage | Highest-value code; deterministic input → deterministic output                                             |
+| `lib/rasterize/*`              | 60%+                    | Vitest               | Mostly thin wrappers around pdfjs; cover the public interface and error paths                              |
+| `lib/io/*`                     | 80%+                    | Vitest               | File-type validation must be airtight (security boundary)                                                  |
+| `lib/queue/*`, `lib/extract/*` | 60%+                    | Vitest               | Orchestration code; lower coverage acceptable, but the queue's concurrency limit is worth a dedicated test |
+| `app/api/*` route handlers     | covered via integration | Vitest + supertest   | Don't unit-test route handlers in isolation — they're thin orchestrators                                   |
+| `lib/vision/*`                 | mocked                  | Vitest               | Don't hit the real Anthropic API in tests; mock the SDK                                                    |
+| `lib/convert/*`, `lib/ocr/*`   | smoke only              | Vitest               | Real LibreOffice/Tesseract in CI is slow; one smoke test each per CI environment                           |
+| Frontend components            | not formally targeted   | —                    | E2E covers the integration; per-component unit tests are out of scope for the time budget                  |
 
 Overall line coverage target: ~70% across `lib/`. Coverage is a guideline, not a gate — we will not add tests just to hit a number.
 
@@ -107,30 +107,30 @@ If time is tight during the build and CI has to be cut, the order of cuts is: `d
 
 Maps PRD requirement IDs to test files / suites that cover them. A `—` means the requirement is exercised indirectly via another covered requirement.
 
-| Requirement | Covered by | Notes |
-|---|---|---|
-| [MVP1] User can upload via dropzone | E2E (#15) | Drag-drop is the primary UI affordance |
-| [MVP2] Validation rejects unsupported types | Unit #8, #9; Integration #11 | Magic-byte sniff plus integration-level rejection |
-| [MVP3] PDF preview rendered | E2E (#15) | Assert preview canvas mounts after upload |
-| [MVP4] PDF rasterized at 200 DPI | Integration #10, #14 | Indirect — the region crops being non-empty proves rasterization ran |
-| [MVP5] Letterhead extracted | Integration #10, #14 | Region must be present in `done` event payload |
-| [MVP6] Footer extracted | Integration #10, #14 | Same |
-| [MVP7] Signature extracted via heuristic | Unit #1, #4, #5; Integration #10, #14 | Heuristic correctness covered in unit; presence covered in integration |
-| [MVP8] Missing signature surfaced as `null` | Unit #2 | The heuristic returns `null` with reason |
-| [MVP9] All three regions render in UI | E2E (#15) | Cards must mount; image elements must have non-empty `src` |
-| [MVP10] Per-region download | E2E (#15); Integration #14 | E2E clicks download, integration verifies the bytes |
-| [MVP11] Graceful error handling | Integration #11, #12, #13 | One test per error class |
-| [MVP12] `docker compose up` works | `docker-build` CI job | Local verification before submission |
-| [MVP13] Sample doc exercises pipeline | Integration #10 fixture | The sample doc IS the integration fixture |
-| [FS1] Vision fallback < 0.6 confidence | Mocked unit test on `lib/vision/claude.ts` | Mock the SDK; assert call shape; not in the count of 15 |
-| [FS2] Vision budget enforced | Mocked unit test on budget tracker | Out of the count of 15; nice-to-have if time permits |
-| [FS3] UI shows detector badge | E2E (#15) extension if time permits | Optional |
-| [FS4] DOCX support | Integration smoke test if LibreOffice present in CI | Beyond the count of 15 |
-| [FS5] PNG/JPEG inputs | Unit fixture test on the image-input code path | Beyond the count of 15 |
-| [FS7] OCR fallback on scanned PDFs | Integration smoke if Tesseract present | Beyond the count of 15 |
-| [FS8]–[FS9] Adjustable crop UI | Manual / E2E extension | Not in the formal test count |
-| [FS10]–[FS13] Batch upload + ZIP | Integration test on `/api/extract/batch` | If time permits |
-| [FS14] JPEG/quality query param | Integration extension on #14 | Quick add if time permits |
-| [FS15]–[FS17] Tests | This document | Self-referential — the tests prove the tests exist |
-| [FS18] Healthcheck endpoint | Integration test on `/api/health` | If time permits |
-| [FS19] Structured pino logs | Not formally tested | Manual verification |
+| Requirement                                 | Covered by                                          | Notes                                                                  |
+| ------------------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------- |
+| [MVP1] User can upload via dropzone         | E2E (#15)                                           | Drag-drop is the primary UI affordance                                 |
+| [MVP2] Validation rejects unsupported types | Unit #8, #9; Integration #11                        | Magic-byte sniff plus integration-level rejection                      |
+| [MVP3] PDF preview rendered                 | E2E (#15)                                           | Assert preview canvas mounts after upload                              |
+| [MVP4] PDF rasterized at 200 DPI            | Integration #10, #14                                | Indirect — the region crops being non-empty proves rasterization ran   |
+| [MVP5] Letterhead extracted                 | Integration #10, #14                                | Region must be present in `done` event payload                         |
+| [MVP6] Footer extracted                     | Integration #10, #14                                | Same                                                                   |
+| [MVP7] Signature extracted via heuristic    | Unit #1, #4, #5; Integration #10, #14               | Heuristic correctness covered in unit; presence covered in integration |
+| [MVP8] Missing signature surfaced as `null` | Unit #2                                             | The heuristic returns `null` with reason                               |
+| [MVP9] All three regions render in UI       | E2E (#15)                                           | Cards must mount; image elements must have non-empty `src`             |
+| [MVP10] Per-region download                 | E2E (#15); Integration #14                          | E2E clicks download, integration verifies the bytes                    |
+| [MVP11] Graceful error handling             | Integration #11, #12, #13                           | One test per error class                                               |
+| [MVP12] `docker compose up` works           | `docker-build` CI job                               | Local verification before submission                                   |
+| [MVP13] Sample doc exercises pipeline       | Integration #10 fixture                             | The sample doc IS the integration fixture                              |
+| [FS1] Vision fallback < 0.6 confidence      | Mocked unit test on `lib/vision/claude.ts`          | Mock the SDK; assert call shape; not in the count of 15                |
+| [FS2] Vision budget enforced                | Mocked unit test on budget tracker                  | Out of the count of 15; nice-to-have if time permits                   |
+| [FS3] UI shows detector badge               | E2E (#15) extension if time permits                 | Optional                                                               |
+| [FS4] DOCX support                          | Integration smoke test if LibreOffice present in CI | Beyond the count of 15                                                 |
+| [FS5] PNG/JPEG inputs                       | Unit fixture test on the image-input code path      | Beyond the count of 15                                                 |
+| [FS7] OCR fallback on scanned PDFs          | Integration smoke if Tesseract present              | Beyond the count of 15                                                 |
+| [FS8]–[FS9] Adjustable crop UI              | Manual / E2E extension                              | Not in the formal test count                                           |
+| [FS10]–[FS13] Batch upload + ZIP            | Integration test on `/api/extract/batch`            | If time permits                                                        |
+| [FS14] JPEG/quality query param             | Integration extension on #14                        | Quick add if time permits                                              |
+| [FS15]–[FS17] Tests                         | This document                                       | Self-referential — the tests prove the tests exist                     |
+| [FS18] Healthcheck endpoint                 | Integration test on `/api/health`                   | If time permits                                                        |
+| [FS19] Structured pino logs                 | Not formally tested                                 | Manual verification                                                    |
