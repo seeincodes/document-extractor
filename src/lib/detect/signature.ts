@@ -16,10 +16,11 @@ const SCAN_WINDOW_RATIO = 0.3;
 const BINARIZE_THRESHOLD = 180;
 
 // Acceptable signature shape: wider-than-tall, but not absurdly elongated.
-// Below 2:1 looks more like a stamp or block of text; above 6:1 looks like a
-// printed horizontal rule.
-const MIN_ASPECT_RATIO = 2;
-const MAX_ASPECT_RATIO = 6;
+// Below 1.5:1 looks more like a stamp or block of text; above 20:1 looks
+// like a printed horizontal rule. Real handwritten signatures commonly reach
+// 10–15:1 (wide, shallow strokes).
+const MIN_ASPECT_RATIO = 1.5;
+const MAX_ASPECT_RATIO = 20;
 
 // Minimum component area in scan-window pixels. Anything smaller is likely
 // speckle noise rather than a real signature stroke.
@@ -27,7 +28,8 @@ const MIN_AREA_PX = 400;
 
 // A component must beat this confidence floor to be returned. Below the
 // floor, we surface null with a reason instead of a low-confidence guess.
-const MIN_CONFIDENCE = 0.35;
+// Set conservatively — the vision fallback at 0.6 is the real quality gate.
+const MIN_CONFIDENCE = 0.25;
 
 const VISION_THRESHOLD = 0.6;
 

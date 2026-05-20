@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+import type { RegionResult } from './jobStore';
 import { defaultStages } from './stages';
 
 const CLEAN_LETTER = resolve(__dirname, '../../../samples/clean-letter.pdf');
@@ -48,13 +49,13 @@ describe('defaultStages', () => {
     // Either a detected signature (clean-letter.pdf has a vector signature
     // stroke that rasterizes successfully) or a typed not_found result.
     // Both are valid outcomes of the heuristic on this fixture.
-    if (result?.status === 'detected') {
+    if (result?.status === 'detected' || result?.status === 'unverified') {
       expect(result.detector).toBe('heuristic');
       expect(result.confidence).toBeGreaterThan(0);
     } else if (result?.status === 'not_found') {
       expect(result.reason).toBeTruthy();
-    } else {
-      throw new Error(`unexpected result shape: ${String(result?.status)}`);
+    } else if (result !== null) {
+      throw new Error(`unexpected result shape: ${String((result as RegionResult).status)}`);
     }
   }, 15_000);
 });

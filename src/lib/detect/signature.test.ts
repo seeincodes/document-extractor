@@ -90,7 +90,7 @@ describe('detectSignature — synthetic single-component', () => {
     expect(result.bbox.h).toBeCloseTo(70 / 1000, 1);
   });
 
-  it('rejects a component with too-square aspect ratio (< 2:1)', async () => {
+  it('rejects a component with too-square aspect ratio (< 1.5:1)', async () => {
     // 100×100 black box (aspect 1:1) — looks like a stamp, not a signature.
     const page = makePage(500, 1000);
     drawRect(page, 200, 800, 100, 100);
@@ -101,10 +101,10 @@ describe('detectSignature — synthetic single-component', () => {
     }
   });
 
-  it('rejects a component with too-elongated aspect ratio (> 6:1)', async () => {
-    // 480×40 black bar (aspect 12:1) — looks like a printed line or rule.
+  it('rejects a component with too-elongated aspect ratio (> 20:1)', async () => {
+    // 490×10 black bar (aspect 49:1) — looks like a printed line or rule.
     const page = makePage(500, 1000);
-    drawRect(page, 10, 850, 480, 40);
+    drawRect(page, 5, 850, 490, 10);
 
     const result = await detectSignature([page]);
     if (!result || result.status !== 'not_found') {
@@ -198,7 +198,7 @@ describe('detectSignature — real PDF fixtures', () => {
     // clean-letter.pdf has a vector signature stroke that rasterizes (unlike
     // its text content). The detector should either find it (status:
     // 'detected' with a bbox in the bottom 30%) or cleanly return null.
-    if (result?.status === 'detected') {
+    if (result?.status === 'detected' || result?.status === 'unverified') {
       // bottom 30% means y ≥ 0.7 of the page
       expect(result.bbox.y).toBeGreaterThanOrEqual(0.65);
     } else if (result?.status === 'not_found') {
