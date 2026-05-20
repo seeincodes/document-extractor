@@ -154,12 +154,10 @@ describe('SSE wire format', () => {
       raw += new TextDecoder().decode(value);
     }
 
-    // Exact expected wire format:
-    //   event: stage\n
-    //   data: {"stage":"validating","progress":1}\n
-    //   \n
+    // The stream opens with a `retry:` directive that suppresses browser
+    // reconnection, followed by the emitted event frame.
     expect(raw).toBe(
-      'event: stage\ndata: {"stage":"validating","progress":1}\n\n',
+      'retry: 2147483647\n\nevent: stage\ndata: {"stage":"validating","progress":1}\n\n',
     );
     // No CRLF anywhere — per the WHATWG EventSource spec.
     expect(raw.includes('\r')).toBe(false);
