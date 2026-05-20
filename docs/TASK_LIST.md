@@ -19,7 +19,7 @@ _Satisfies: prerequisite for everything_
 - [x] Create empty `lib/extract/`, `lib/rasterize/`, `lib/detect/`, `lib/convert/`, `lib/ocr/`, `lib/vision/`, `lib/queue/`, `lib/io/` directories with `.gitkeep`
 - [x] Add Tailwind CSS v4 + PostCSS configuration; verify a styled component renders
 - [x] Initialize shadcn/ui and install Button, Card, Dialog, Progress, Alert, Tabs primitives
-- [ ] Commit: `chore: scaffold next.js app and tooling`
+- [x] Commit: `chore: scaffold next.js app and tooling`
 
 ### 2. PDF rasterization
 
