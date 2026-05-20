@@ -84,7 +84,7 @@ _Satisfies: [MVP6]_
 
 _Satisfies: [MVP7], [MVP8]_
 
-- [ ] Install `sharp`
+- [x] Install `sharp`
 - [ ] Implement `lib/detect/signature.ts` exporting `detectSignature(pages, opts)`:
   - [ ] Crop the bottom 30% of the last page (color + greyscale)
   - [ ] `sharp().greyscale().threshold(180)` to binarize
