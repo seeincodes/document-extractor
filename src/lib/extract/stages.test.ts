@@ -29,9 +29,20 @@ describe('defaultStages', () => {
     expect(result.confidence).toBeGreaterThan(0);
   }, 15_000);
 
-  it('detectFooter() and detectSignature() return null until their groups land', async () => {
+  it('detectFooter() returns a detected RegionResult on a valid page', async () => {
     const pages = await defaultStages.rasterize(readBytes(CLEAN_LETTER));
-    expect(await defaultStages.detectFooter(pages, 'j_test')).toBeNull();
+    const result = await defaultStages.detectFooter(pages, 'j_test');
+
+    expect(result).not.toBeNull();
+    if (!result || result.status !== 'detected') {
+      throw new Error(`expected detected; got ${result?.status ?? 'null'}`);
+    }
+    expect(result.detector).toBe('heuristic');
+    expect(result.confidence).toBeGreaterThan(0);
+  }, 15_000);
+
+  it('detectSignature() returns null until group 7 lands', async () => {
+    const pages = await defaultStages.rasterize(readBytes(CLEAN_LETTER));
     expect(await defaultStages.detectSignature(pages, 'j_test')).toBeNull();
   }, 15_000);
 });
