@@ -53,10 +53,10 @@ _Satisfies: [MVP11] (in conjunction with the pipeline)_
 
 - [x] Implement `lib/extract/sse.ts` with a thin event-emitter wrapper that produces a `ReadableStream` for App Router routes
 - [x] Define event types: `stage`, `region_ready`, `done`, `error` (typed shapes documented in `docs/USER_FLOW.md`)
-- [ ] Implement `app/api/extract/[jobId]/stream/route.ts` returning `text/event-stream`
+- [x] Implement `app/api/extract/[jobId]/stream/route.ts` returning `text/event-stream`
 - [x] Pipeline orchestrator (`lib/extract/run.ts`) emits events as each stage transitions
 - [x] Wire `error` events to map error codes → user-friendly messages
-- [ ] Commit: `feat(api): sse progress events`
+- [x] Commit: `feat(api): sse progress events`
 
 ### 5. Letterhead extraction
 
