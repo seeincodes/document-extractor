@@ -6,11 +6,11 @@ import {
   toUserMessage,
   type ExtractErrorCode,
 } from '@/lib/extract/errors';
+import { generateJobId } from '@/lib/extract/jobStore';
 import {
-  createJobStore,
-  generateJobId,
-  type JobStore,
-} from '@/lib/extract/jobStore';
+  __resetSharedStoreForTests,
+  getSharedJobStore,
+} from '@/lib/extract/sharedJobStore';
 import { createJobTempDir, cleanupTempDir } from '@/lib/io/tempDir';
 import { validateUpload } from '@/lib/io/validate';
 
@@ -24,9 +24,6 @@ export const maxDuration = 60;
 // and a Content-Length pre-check.
 const DEFAULT_MAX_BYTES = 26_214_400;
 
-// Module-scoped JobStore: one per Node process, shared across requests.
-// __resetForTests below swaps it for an empty one between tests.
-let store: JobStore = createJobStore();
 let tempBaseDir: string | undefined;
 let maxBytes: number = DEFAULT_MAX_BYTES;
 
@@ -36,7 +33,7 @@ export interface RouteTestOverrides {
 }
 
 export function __resetForTests(overrides: RouteTestOverrides = {}): void {
-  store = createJobStore();
+  __resetSharedStoreForTests();
   tempBaseDir = overrides.tempBaseDir;
   maxBytes = overrides.maxBytes ?? DEFAULT_MAX_BYTES;
 }
@@ -97,7 +94,7 @@ export async function POST(request: Request): Promise<Response> {
       const originalFilename =
         fileField instanceof File ? fileField.name : `upload.${validated.ext}`;
 
-      store.create({
+      getSharedJobStore().create({
         jobId,
         originalFilename,
         tempDir,
