@@ -78,6 +78,7 @@ export interface JobStore {
   get(jobId: string): JobRecord | undefined;
   update(jobId: string, patch: Partial<JobRecord>): JobRecord;
   delete(jobId: string): void;
+  listByBatch(batchId: string): JobRecord[];
 }
 
 export function createJobStore(): JobStore {
@@ -120,6 +121,14 @@ export function createJobStore(): JobStore {
 
     delete(jobId) {
       records.delete(jobId);
+    },
+
+    listByBatch(batchId) {
+      const result: JobRecord[] = [];
+      for (const record of records.values()) {
+        if (record.batchId === batchId) result.push(record);
+      }
+      return result;
     },
   };
 }
