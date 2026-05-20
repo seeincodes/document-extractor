@@ -15,7 +15,7 @@ _Satisfies: prerequisite for everything_
 - [x] Initialize Next.js 15 App Router app with TypeScript template
 - [x] Configure `tsconfig.json` with `strict: true`, `noUncheckedIndexedAccess: true`, `exactOptionalPropertyTypes: true`
 - [x] Configure ESLint (`@typescript-eslint`, `eslint-plugin-react`, `eslint-plugin-react-hooks`) and Prettier with project config
-- [ ] Add `npm run typecheck` (`tsc --noEmit`), `npm run lint`, `npm run format` scripts
+- [x] Add `npm run typecheck` (`tsc --noEmit`), `npm run lint`, `npm run format` scripts
 - [ ] Create empty `lib/extract/`, `lib/rasterize/`, `lib/detect/`, `lib/convert/`, `lib/ocr/`, `lib/vision/`, `lib/queue/`, `lib/io/` directories with `.gitkeep`
 - [ ] Add Tailwind CSS v4 + PostCSS configuration; verify a styled component renders
 - [ ] Initialize shadcn/ui and install Button, Card, Dialog, Progress, Alert, Tabs primitives
