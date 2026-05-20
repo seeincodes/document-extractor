@@ -3,6 +3,8 @@ import { createRequire } from 'node:module';
 import { createCanvas } from '@napi-rs/canvas';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 
+import { ExtractError } from '../extract/errors';
+
 const DEFAULT_DPI = 200;
 const DEFAULT_MAX_PAGES = 50;
 const PDF_USER_SPACE_DPI = 72;
@@ -11,22 +13,6 @@ const require = createRequire(import.meta.url);
 pdfjs.GlobalWorkerOptions.workerSrc = require.resolve(
   'pdfjs-dist/legacy/build/pdf.worker.mjs',
 );
-
-export type RasterizeErrorCode =
-  | 'ENCRYPTED_PDF'
-  | 'MALFORMED_PDF'
-  | 'PAGE_LIMIT_EXCEEDED';
-
-export class RasterizeError extends Error {
-  override name = 'RasterizeError' as const;
-  constructor(
-    readonly code: RasterizeErrorCode,
-    message: string,
-    options?: { cause?: unknown },
-  ) {
-    super(message, options);
-  }
-}
 
 export interface RasterizedPage {
   width: number;
@@ -52,7 +38,7 @@ export async function rasterizePages(
 
   try {
     if (doc.numPages > maxPages) {
-      throw new RasterizeError(
+      throw new ExtractError(
         'PAGE_LIMIT_EXCEEDED',
         `Document has ${doc.numPages} pages; the limit is ${maxPages}.`,
       );
@@ -87,10 +73,10 @@ async function loadDocument(
   }
 }
 
-function translateLoadError(err: unknown): RasterizeError {
+function translateLoadError(err: unknown): ExtractError {
   const name = err instanceof Error ? err.constructor.name : '';
   if (name === 'PasswordException') {
-    return new RasterizeError(
+    return new ExtractError(
       'ENCRYPTED_PDF',
       'This PDF is password-protected.',
       { cause: err },
@@ -101,7 +87,7 @@ function translateLoadError(err: unknown): RasterizeError {
   // error is preserved in `cause` for server-side logs; the user message is
   // intentionally generic per docs/MEMO.md ("parser errors can leak file
   // structure").
-  return new RasterizeError('MALFORMED_PDF', 'This PDF could not be parsed.', {
+  return new ExtractError('MALFORMED_PDF', 'This PDF could not be parsed.', {
     cause: err,
   });
 }

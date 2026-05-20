@@ -37,15 +37,15 @@ _Satisfies: [MVP4]_
 
 _Satisfies: [MVP1], [MVP2], [MVP11]_
 
-- [ ] Install `file-type`
-- [ ] Implement `lib/io/validate.ts` with magic-byte detection for PDF, DOCX, PNG, JPEG (and TIFF/WEBP as tier-2)
-- [ ] Implement `lib/io/tempDir.ts` with `createJobTempDir(jobId)` and `cleanupTempDir(jobId)` helpers
-- [ ] Implement `lib/extract/jobStore.ts` with in-memory `Map<jobId, JobRecord>` and the JobRecord shape from `docs/TECH_STACK.md`
-- [ ] Implement `lib/extract/errors.ts` with the typed error code constants and a `toUserMessage(code)` helper
-- [ ] Implement `app/api/extract/route.ts` (POST): parse multipart, validate, write upload to temp dir, create JobRecord, return `{ jobId }` with 202
-- [ ] Set Next.js body size limit to 25MB via route config
-- [ ] Return 400 `UNSUPPORTED_FILE_TYPE` and `FILE_TOO_LARGE` cleanly
-- [ ] Commit: `feat(api): upload validation and job creation`
+- [x] Install `file-type`
+- [x] Implement `lib/io/validate.ts` with magic-byte detection for PDF, DOCX, PNG, JPEG (and TIFF/WEBP as tier-2)
+- [x] Implement `lib/io/tempDir.ts` with `createJobTempDir(jobId)` and `cleanupTempDir(jobId)` helpers
+- [x] Implement `lib/extract/jobStore.ts` with in-memory `Map<jobId, JobRecord>` and the JobRecord shape from `docs/TECH_STACK.md`
+- [x] Implement `lib/extract/errors.ts` with the typed error code constants and a `toUserMessage(code)` helper
+- [x] Implement `app/api/extract/route.ts` (POST): parse multipart, validate, write upload to temp dir, create JobRecord, return `{ jobId }` with 202
+- [x] Set Next.js body size limit to 25MB via route config
+- [x] Return 400 `UNSUPPORTED_FILE_TYPE` and `FILE_TOO_LARGE` cleanly
+- [x] Commit: `feat(api): upload validation and job creation`
 
 ### 4. SSE progress streaming
 

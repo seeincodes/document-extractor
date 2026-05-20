@@ -204,15 +204,132 @@ function buildMalformedPdf() {
   return Buffer.from('%PDF-1.4\nthis is not a real pdf body, just garbage\n', 'binary');
 }
 
+// ---------- build minimal.docx ---------------------------------------------
+
+// A DOCX is a ZIP with three required parts: [Content_Types].xml, _rels/.rels,
+// and word/document.xml. file-type detects DOCX by peeking [Content_Types].xml
+// inside the ZIP central directory, so we cannot just write the ZIP magic —
+// we need a real (small) ZIP archive with that entry. We build it by hand:
+// each file is stored uncompressed (method 0) so we can skip zlib entirely
+// and keep the fixture deterministic and verifiable.
+function buildMinimalDocx() {
+  const files = [
+    {
+      name: '[Content_Types].xml',
+      body:
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+        '</Types>',
+    },
+    {
+      name: '_rels/.rels',
+      body:
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>' +
+        '</Relationships>',
+    },
+    {
+      name: 'word/document.xml',
+      body:
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+        '<w:body><w:p><w:r><w:t>Hello</w:t></w:r></w:p></w:body>' +
+        '</w:document>',
+    },
+  ];
+
+  // CRC-32 used by ZIP. Implemented inline to avoid pulling in zlib.crc32.
+  const crcTable = (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+  const crc32 = (buf) => {
+    let c = 0xffffffff;
+    for (const b of buf) c = crcTable[(c ^ b) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  };
+
+  const u16 = (n) => Buffer.from([n & 0xff, (n >> 8) & 0xff]);
+  const u32 = (n) => Buffer.from([n & 0xff, (n >> 8) & 0xff, (n >> 16) & 0xff, (n >>> 24) & 0xff]);
+
+  const localParts = [];
+  const centralParts = [];
+  let offset = 0;
+
+  for (const { name, body } of files) {
+    const nameBuf = Buffer.from(name, 'utf8');
+    const bodyBuf = Buffer.from(body, 'utf8');
+    const crc = crc32(bodyBuf);
+
+    const localHeader = Buffer.concat([
+      Buffer.from([0x50, 0x4b, 0x03, 0x04]), // local file header signature
+      u16(20),                                // version needed
+      u16(0),                                 // flags
+      u16(0),                                 // method = store
+      u16(0), u16(0x21),                      // last mod time/date (stable epoch)
+      u32(crc),
+      u32(bodyBuf.length),                    // compressed size
+      u32(bodyBuf.length),                    // uncompressed size
+      u16(nameBuf.length),
+      u16(0),                                 // extra length
+      nameBuf,
+      bodyBuf,
+    ]);
+    localParts.push(localHeader);
+
+    centralParts.push(Buffer.concat([
+      Buffer.from([0x50, 0x4b, 0x01, 0x02]), // central dir signature
+      u16(20), u16(20),                       // version made by / needed
+      u16(0), u16(0),                         // flags / method
+      u16(0), u16(0x21),                      // time/date
+      u32(crc),
+      u32(bodyBuf.length),
+      u32(bodyBuf.length),
+      u16(nameBuf.length),
+      u16(0), u16(0),                         // extra / comment
+      u16(0), u16(0),                         // disk / internal attrs
+      u32(0),                                 // external attrs
+      u32(offset),                            // local header offset
+      nameBuf,
+    ]));
+
+    offset += localHeader.length;
+  }
+
+  const centralDir = Buffer.concat(centralParts);
+  const eocd = Buffer.concat([
+    Buffer.from([0x50, 0x4b, 0x05, 0x06]),    // end of central dir signature
+    u16(0), u16(0),                            // disk numbers
+    u16(files.length), u16(files.length),
+    u32(centralDir.length),
+    u32(offset),                               // central dir offset
+    u16(0),                                    // comment length
+  ]);
+
+  return Buffer.concat([...localParts, centralDir, eocd]);
+}
+
 // ---------- write -----------------------------------------------------------
 
 fs.mkdirSync(FIXTURE_DIR, { recursive: true });
 
 const encrypted = buildEncryptedPdf();
 const malformed = buildMalformedPdf();
+const docx = buildMinimalDocx();
 
 fs.writeFileSync(path.join(FIXTURE_DIR, 'encrypted.pdf'), encrypted);
 fs.writeFileSync(path.join(FIXTURE_DIR, 'malformed.pdf'), malformed);
+fs.writeFileSync(path.join(FIXTURE_DIR, 'minimal.docx'), docx);
 
 console.log(`encrypted.pdf: ${encrypted.length} bytes`);
 console.log(`malformed.pdf: ${malformed.length} bytes`);
+console.log(`minimal.docx:  ${docx.length} bytes`);
