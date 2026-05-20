@@ -25,7 +25,7 @@ _Satisfies: prerequisite for everything_
 
 _Satisfies: [MVP4]_
 
-- [ ] Install `pdfjs-dist` and `@napi-rs/canvas`
+- [x] Install `pdfjs-dist` and `@napi-rs/canvas`
 - [ ] Implement `lib/rasterize/pdfjs.ts` exporting `PageRasterizer` interface and `rasterizePages(buffer, opts)` returning per-page color + greyscale buffers at 200 DPI
 - [ ] Configure pdfjs `GlobalWorkerOptions.workerSrc` correctly for the Node runtime; disable `isEvalSupported`
 - [ ] Handle encrypted PDF (`PasswordException`) → throw typed `ENCRYPTED_PDF` error
