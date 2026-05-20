@@ -41,6 +41,16 @@ Do **not** log:
 
 ## Log
 
+### [2026-05-20] `npm run build` fails on @napi-rs/canvas + pdfjs workerSrc
+
+- **Error:** Turbopack build failure with two distinct symptoms after wiring `defaultStages` into the stream route. First: `non-ecmascript placeable asset / asset is not placeable in ESM chunks` against `@napi-rs/canvas/js-binding.js`. After fix, second: `Invalid 'workerSrc' type` during Next's "Collecting page data" phase.
+- **Context:** Group 5, wiring `src/lib/extract/stages.ts → defaultStages.rasterize` into the App Router route. Vitest tests passed before the build was run. `npm run dev` works (no Turbopack build).
+- **Root Cause:** Two layered issues. (1) `@napi-rs/canvas` ships a `.node` native binary that Turbopack can't bundle into the server output. (2) `src/lib/rasterize/pdfjs.ts` set `pdfjs.GlobalWorkerOptions.workerSrc` at module-load time, which Next evaluates during the "collect page data" phase before any request reaches the route — `require.resolve` was somehow returning an unexpected value in that context.
+- **Fix:**
+  1. Added `serverExternalPackages: ['@napi-rs/canvas', 'pdfjs-dist']` to `next.config.ts`. Both are Node-native dependencies; they should load as CommonJS at runtime, never be bundled.
+  2. Lazy-initialized `workerSrc` in `src/lib/rasterize/pdfjs.ts` via an `ensureWorkerSrc()` call at the top of `rasterizePages`. The module no longer touches `GlobalWorkerOptions` until the first real call.
+- **Prevention:** Anything that needs to read native binaries or do filesystem resolution at module-load time should be deferred to first call. The `ensureWorkerSrc()` pattern is the template — copy it when groups 14 (LibreOffice) and 16 (Tesseract) wire in their respective binaries.
+
 ### [2026-05-20] Synthetic PDF fixtures render without text under pdfjs Node mode
 
 - **Error:** `samples/clean-letter.pdf`, `samples/tall-letterhead.pdf`, and `samples/no-letterhead.pdf` parse cleanly via `pdfjs-dist`, but when rendered via `@napi-rs/canvas` with our standard `disableFontFace: true` + `useSystemFonts: false` flags (per `docs/MEMO.md`), the text content is silently dropped. Only vector strokes (horizontal rules, the signature path) appear in the output. The letterhead row-scan algorithm in `src/lib/detect/letterhead.ts` therefore can't find a 3-row-thick ink band in the top 35% of these fixtures and falls back to the 18% default.

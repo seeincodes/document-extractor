@@ -8,6 +8,7 @@ import {
 } from '@/lib/extract/jobStore';
 import { runJob as defaultRunJob, type RunJobInput } from '@/lib/extract/run';
 import { createSseEmitter } from '@/lib/extract/sse';
+import { defaultStages } from '@/lib/extract/stages';
 import type { SupportedKind } from '@/lib/io/validate';
 
 export const runtime = 'nodejs';
@@ -119,20 +120,7 @@ export async function GET(
         bytes,
         fileKind,
         emitter,
-        // Stages are intentionally not wired yet. Group 5/6/7 will provide
-        // a `defaultStages` module that this route composes. Until then the
-        // override-injected runJob in tests is the only complete path.
-        stages: {
-          rasterize: async () => {
-            throw new ExtractError(
-              'INTERNAL_ERROR',
-              'stages not wired yet (group 5/6/7)',
-            );
-          },
-          detectLetterhead: async () => null,
-          detectFooter: async () => null,
-          detectSignature: async () => null,
-        },
+        stages: defaultStages,
         store,
       });
     } catch (err) {

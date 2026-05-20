@@ -9,10 +9,18 @@ const DEFAULT_DPI = 200;
 const DEFAULT_MAX_PAGES = 50;
 const PDF_USER_SPACE_DPI = 72;
 
-const require = createRequire(import.meta.url);
-pdfjs.GlobalWorkerOptions.workerSrc = require.resolve(
-  'pdfjs-dist/legacy/build/pdf.worker.mjs',
-);
+// Lazy workerSrc setup. Setting GlobalWorkerOptions at module-load time runs
+// during Next's "collect page data" build phase, which can trip "Invalid
+// workerSrc type" before any real call happens. Defer to first use.
+let workerSrcConfigured = false;
+function ensureWorkerSrc(): void {
+  if (workerSrcConfigured) return;
+  const require = createRequire(import.meta.url);
+  pdfjs.GlobalWorkerOptions.workerSrc = require.resolve(
+    'pdfjs-dist/legacy/build/pdf.worker.mjs',
+  );
+  workerSrcConfigured = true;
+}
 
 export interface RasterizedPage {
   width: number;
@@ -30,6 +38,7 @@ export async function rasterizePages(
   data: Uint8Array,
   opts: RasterizeOptions = {},
 ): Promise<RasterizedPage[]> {
+  ensureWorkerSrc();
   const dpi = opts.dpi ?? DEFAULT_DPI;
   const maxPages = opts.maxPages ?? DEFAULT_MAX_PAGES;
   const scale = dpi / PDF_USER_SPACE_DPI;
