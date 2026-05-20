@@ -37,14 +37,14 @@ playwright-report/
 test-results/
 playwright/.cache/
 
-# Environment files (real values)
+# Environment files
+# Only .env.example is committed (empty template, see CLAUDE.md).
+# .env and .env.*.local hold real values and are always gitignored.
+.env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
-
-# Note: `.env` is committed as a template with empty values.
-# Real values go in `.env.local` (above) which IS gitignored.
 
 # Vercel
 .vercel
