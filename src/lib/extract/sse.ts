@@ -37,6 +37,7 @@ export interface SseEmitter {
   stream: ReadableStream<Uint8Array>;
   emit(event: SseEvent): void;
   close(): void;
+  readonly closed: boolean;
 }
 
 const ENCODER = new TextEncoder();
@@ -70,6 +71,9 @@ export function createSseEmitter(): SseEmitter {
       closed = true;
       controller.close();
     },
+    get closed() {
+      return closed;
+    },
   };
 }
 
@@ -99,6 +103,21 @@ function parseFrame(frame: string): SseEvent | null {
   } as SseEvent;
 }
 
+function* drainFrames(buffer: string): Generator<{
+  event: SseEvent;
+  remaining: string;
+}> {
+  let rest = buffer;
+  let separator = rest.indexOf('\n\n');
+  while (separator !== -1) {
+    const frame = rest.slice(0, separator);
+    rest = rest.slice(separator + 2);
+    const parsed = parseFrame(frame);
+    if (parsed) yield { event: parsed, remaining: rest };
+    separator = rest.indexOf('\n\n');
+  }
+}
+
 export async function* parseSseStream(
   stream: ReadableStream<Uint8Array>,
 ): AsyncGenerator<SseEvent> {
@@ -112,20 +131,17 @@ export async function* parseSseStream(
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
 
-      let separatorIndex = buffer.indexOf('\n\n');
-      while (separatorIndex !== -1) {
-        const frame = buffer.slice(0, separatorIndex);
-        buffer = buffer.slice(separatorIndex + 2);
-        const parsed = parseFrame(frame);
-        if (parsed) yield parsed;
-        separatorIndex = buffer.indexOf('\n\n');
+      for (const drained of drainFrames(buffer)) {
+        buffer = drained.remaining;
+        yield drained.event;
       }
     }
-    // Flush any trailing complete frame after the stream closes.
-    const trailing = buffer + decoder.decode();
-    if (trailing.includes('\n\n')) {
-      const parsed = parseFrame(trailing);
-      if (parsed) yield parsed;
+    // Flush trailing complete frames after the stream closes. Multiple frames
+    // can land in this final chunk if the producer flushed several events
+    // without an interleaved read on our side. Buffer state doesn't matter
+    // after this loop — the reader is about to be released.
+    for (const drained of drainFrames(buffer + decoder.decode())) {
+      yield drained.event;
     }
   } finally {
     reader.releaseLock();

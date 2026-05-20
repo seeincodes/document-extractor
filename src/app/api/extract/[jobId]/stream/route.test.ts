@@ -130,15 +130,25 @@ describe('GET /api/extract/[jobId]/stream', () => {
     expect(events[0]?.event).toBe('error');
   });
 
-  it('stops emitting when the client aborts', async () => {
-    let emitterCaptured: SseEmitter | null = null;
-    fakeRunJob = async (input) => {
-      emitterCaptured = input.emitter;
-      // Hold open; the test will abort.
-      await new Promise((r) => setTimeout(r, 50));
-      input.emitter.emit({ event: 'done', data: { jobId: input.jobId } });
-      input.emitter.close();
-    };
+  it('closes the emitter when the client aborts mid-stream', async () => {
+    const captured: { emitter: SseEmitter | null } = { emitter: null };
+    const pipelineStarted = new Promise<void>((resolve) => {
+      fakeRunJob = async (input) => {
+        captured.emitter = input.emitter;
+        resolve();
+        // Hold open until aborted. The route's abort listener closes the
+        // emitter; we observe that and then exit.
+        await new Promise<void>((done) => {
+          const tick = setInterval(() => {
+            if (input.emitter.closed) {
+              clearInterval(tick);
+              done();
+            }
+          }, 5);
+        });
+      };
+    });
+
     const store = createJobStore();
     store.create({
       jobId: FAKE_JOB_ID,
@@ -158,15 +168,19 @@ describe('GET /api/extract/[jobId]/stream', () => {
       `http://test/api/extract/${FAKE_JOB_ID}/stream`,
       { signal: controller.signal },
     );
-    const res = await GET(req, { params: Promise.resolve({ jobId: FAKE_JOB_ID }) });
+    const res = await GET(req, {
+      params: Promise.resolve({ jobId: FAKE_JOB_ID }),
+    });
+    expect(res.status).toBe(200);
 
+    // Wait until the pipeline has captured the emitter, then abort. If the
+    // route's abort handler were removed, the emitter would never close and
+    // this test would hang to Vitest's default timeout.
+    await pipelineStarted;
     controller.abort();
-    await new Promise((r) => setTimeout(r, 60));
-    // The emitter should have been closed once abort fired.
-    // We can't observe this directly without exposing internals, but we
-    // confirm that calling emit on it after close is a no-op (covered by
-    // sse.test.ts) and the stream eventually completes.
-    expect(emitterCaptured).toBeTruthy();
-    expect(res.body).toBeTruthy();
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(captured.emitter).not.toBeNull();
+    expect(captured.emitter?.closed).toBe(true);
   });
 });

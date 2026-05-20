@@ -119,7 +119,7 @@ export async function runJob(input: RunJobInput): Promise<void> {
     emitter.emit({ event: 'done', data: { jobId } });
   } catch (err) {
     const code: ExtractErrorCode =
-      err instanceof ExtractError ? err.code : 'MALFORMED_PDF';
+      err instanceof ExtractError ? err.code : 'INTERNAL_ERROR';
     const message = toUserMessage(code);
     store.update(jobId, { stage: 'failed', error: { code, message } });
     const errorEvent: SseEvent = {

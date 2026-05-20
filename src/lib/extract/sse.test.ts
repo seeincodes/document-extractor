@@ -187,4 +187,29 @@ describe('parseSseStream chunking', () => {
       { event: 'stage', data: { stage: 'done', progress: 1 } },
     ]);
   });
+
+  it('drains every complete frame even when several arrive in one trailing chunk', async () => {
+    // Simulate a producer that flushed three full events and then closed
+    // before our reader looped back. The trailing-flush path must yield
+    // all three, not just the first.
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(
+            'event: stage\ndata: {"stage":"validating","progress":1}\n\n' +
+              'event: stage\ndata: {"stage":"rasterizing","progress":0.5}\n\n' +
+              'event: done\ndata: {"jobId":"j_x"}\n\n',
+          ),
+        );
+        controller.close();
+      },
+    });
+
+    const events: SseEvent[] = [];
+    for await (const event of parseSseStream(stream)) {
+      events.push(event);
+    }
+
+    expect(events.map((e) => e.event)).toEqual(['stage', 'stage', 'done']);
+  });
 });

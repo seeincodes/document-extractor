@@ -46,15 +46,21 @@ export function __resetForTests(overrides: StreamRouteOverrides = {}): void {
 }
 
 async function defaultReadUploadBytes(jobId: string): Promise<Uint8Array> {
+  // The GET handler already 404s when the JobStore has no record, so by the
+  // time we get here the record must exist. If it somehow doesn't, that's an
+  // INTERNAL_ERROR, not a user-input problem.
   const record = store.get(jobId);
   if (!record) {
-    throw new ExtractError('UNSUPPORTED_FILE_TYPE', `unknown job ${jobId}`);
+    throw new ExtractError(
+      'INTERNAL_ERROR',
+      `job ${jobId} disappeared between guard and read`,
+    );
   }
   const entries = await readdir(record.tempDir);
   const uploadFile = entries.find((name) => name.startsWith('upload.'));
   if (!uploadFile) {
     throw new ExtractError(
-      'MALFORMED_PDF',
+      'INTERNAL_ERROR',
       `upload file missing for job ${jobId}`,
     );
   }
@@ -89,12 +95,18 @@ export async function GET(
   const emitter = createSseEmitter();
 
   // Client-disconnect cleanup: close the emitter when the request aborts so
-  // we don't keep generating events for nobody.
-  if (request.signal) {
-    const onAbort = (): void => emitter.close();
-    if (request.signal.aborted) onAbort();
-    else request.signal.addEventListener('abort', onAbort, { once: true });
+  // we don't keep generating events for nobody. The listener is removed when
+  // the pipeline finishes normally to avoid accumulating handlers on the
+  // signal for the lifetime of the process.
+  const onAbort = (): void => emitter.close();
+  if (request.signal.aborted) {
+    onAbort();
+  } else {
+    request.signal.addEventListener('abort', onAbort, { once: true });
   }
+  const detachAbortListener = (): void => {
+    request.signal.removeEventListener('abort', onAbort);
+  };
 
   // Kick off the pipeline without awaiting — the response stream is what
   // carries the work back to the client.
@@ -113,7 +125,7 @@ export async function GET(
         stages: {
           rasterize: async () => {
             throw new ExtractError(
-              'MALFORMED_PDF',
+              'INTERNAL_ERROR',
               'stages not wired yet (group 5/6/7)',
             );
           },
@@ -125,12 +137,14 @@ export async function GET(
       });
     } catch (err) {
       const code =
-        err instanceof ExtractError ? err.code : 'MALFORMED_PDF';
+        err instanceof ExtractError ? err.code : 'INTERNAL_ERROR';
       emitter.emit({
         event: 'error',
         data: { code, message: 'Pipeline failed before any stage ran.' },
       });
       emitter.close();
+    } finally {
+      detachAbortListener();
     }
   })();
 

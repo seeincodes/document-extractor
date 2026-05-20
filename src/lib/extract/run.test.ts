@@ -234,12 +234,13 @@ describe('runJob — error path', () => {
     const events = await drain;
     const errorEvent = events.find((e) => e.event === 'error');
     expect(errorEvent?.event).toBe('error');
-    // Unknown exceptions surface as MALFORMED_PDF only if we choose to — but
-    // here we expect a generic code. Lock it down: the orchestrator must not
-    // leak `TypeError` or `boom` to the client. The user-facing message comes
-    // from toUserMessage(<code>).
+    // Non-ExtractError exceptions surface as INTERNAL_ERROR, never leaking
+    // the raw thrown message ('boom') or class name ('TypeError') to the
+    // client. The user-facing message comes from toUserMessage(INTERNAL_ERROR).
     if (errorEvent?.event === 'error') {
+      expect(errorEvent.data.code).toBe('INTERNAL_ERROR');
       expect(errorEvent.data.message).not.toContain('boom');
+      expect(errorEvent.data.message).not.toContain('TypeError');
     }
   });
 });
