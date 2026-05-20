@@ -16,10 +16,12 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
+    "@napi-rs/canvas": "^0.1.100",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.16.0",
     "next": "16.2.6",
+    "pdfjs-dist": "^4.10.38",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "shadcn": "^4.7.0",
