@@ -1,7 +1,9 @@
-import { createRequire } from 'node:module';
-
 import { createCanvas } from '@napi-rs/canvas';
-import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
+import type PdfjsLib from 'pdfjs-dist';
+import type {
+  PDFDocumentProxy,
+  PDFPageProxy,
+} from 'pdfjs-dist/types/src/display/api';
 
 import { ExtractError } from '../extract/errors';
 
@@ -9,17 +11,24 @@ const DEFAULT_DPI = 200;
 const DEFAULT_MAX_PAGES = 50;
 const PDF_USER_SPACE_DPI = 72;
 
-// Lazy workerSrc setup. Setting GlobalWorkerOptions at module-load time runs
-// during Next's "collect page data" build phase, which can trip "Invalid
-// workerSrc type" before any real call happens. Defer to first use.
-let workerSrcConfigured = false;
-function ensureWorkerSrc(): void {
-  if (workerSrcConfigured) return;
-  const require = createRequire(import.meta.url);
-  pdfjs.GlobalWorkerOptions.workerSrc = require.resolve(
-    'pdfjs-dist/legacy/build/pdf.worker.mjs',
-  );
-  workerSrcConfigured = true;
+// Lazily resolved pdfjs reference. Loaded on first use via dynamic import to
+// bypass Turbopack's static analysis which rewrites pdfjs-dist's internal
+// module paths and breaks the worker resolver.
+let _pdfjs: typeof PdfjsLib | null = null;
+
+async function getPdfjs(): Promise<typeof PdfjsLib> {
+  if (_pdfjs) return _pdfjs;
+  // Dynamic import loads the module at runtime without Turbopack rewriting
+  // the specifier. The legacy build is Node-safe (no DOM dependencies).
+  _pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+
+  // Point pdfjs at its worker for off-thread parsing. Turbopack rewrites
+  // `require.resolve()` to a virtual path ("[project]/..."), so we build
+  // the worker path from process.cwd() which always returns the real
+  // filesystem project root.
+  const workerPath = `${process.cwd()}/node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs`;
+  _pdfjs.GlobalWorkerOptions.workerSrc = workerPath;
+  return _pdfjs;
 }
 
 export interface RasterizedPage {
@@ -38,7 +47,6 @@ export async function rasterizePages(
   data: Uint8Array,
   opts: RasterizeOptions = {},
 ): Promise<RasterizedPage[]> {
-  ensureWorkerSrc();
   const dpi = opts.dpi ?? DEFAULT_DPI;
   const maxPages = opts.maxPages ?? DEFAULT_MAX_PAGES;
   const scale = dpi / PDF_USER_SPACE_DPI;
@@ -66,7 +74,8 @@ export async function rasterizePages(
 
 async function loadDocument(
   data: Uint8Array,
-): Promise<pdfjs.PDFDocumentProxy> {
+): Promise<PDFDocumentProxy> {
+  const pdfjs = await getPdfjs();
   const loadingTask = pdfjs.getDocument({
     data,
     isEvalSupported: false,
@@ -102,11 +111,11 @@ function translateLoadError(err: unknown): ExtractError {
 }
 
 async function renderPage(
-  doc: pdfjs.PDFDocumentProxy,
+  doc: PDFDocumentProxy,
   pageNumber: number,
   scale: number,
 ): Promise<RasterizedPage> {
-  const page = await doc.getPage(pageNumber);
+  const page: PDFPageProxy = await doc.getPage(pageNumber);
   try {
     const viewport = page.getViewport({ scale });
     const width = Math.floor(viewport.width);
