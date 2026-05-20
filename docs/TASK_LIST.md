@@ -26,12 +26,12 @@ _Satisfies: prerequisite for everything_
 _Satisfies: [MVP4]_
 
 - [x] Install `pdfjs-dist` and `@napi-rs/canvas`
-- [ ] Implement `lib/rasterize/pdfjs.ts` exporting `PageRasterizer` interface and `rasterizePages(buffer, opts)` returning per-page color + greyscale buffers at 200 DPI
-- [ ] Configure pdfjs `GlobalWorkerOptions.workerSrc` correctly for the Node runtime; disable `isEvalSupported`
-- [ ] Handle encrypted PDF (`PasswordException`) → throw typed `ENCRYPTED_PDF` error
-- [ ] Handle malformed PDF (parse errors) → throw typed `MALFORMED_PDF` error
-- [ ] Enforce 50-page cap; throw `PAGE_LIMIT_EXCEEDED` before rasterizing if exceeded
-- [ ] Commit: `feat(rasterize): pdf to 200-dpi image buffers`
+- [x] Implement `lib/rasterize/pdfjs.ts` exporting `PageRasterizer` interface and `rasterizePages(buffer, opts)` returning per-page color + greyscale buffers at 200 DPI
+- [x] Configure pdfjs `GlobalWorkerOptions.workerSrc` correctly for the Node runtime; disable `isEvalSupported`
+- [x] Handle encrypted PDF (`PasswordException`) → throw typed `ENCRYPTED_PDF` error
+- [x] Handle malformed PDF (parse errors) → throw typed `MALFORMED_PDF` error
+- [x] Enforce 50-page cap; throw `PAGE_LIMIT_EXCEEDED` before rasterizing if exceeded
+- [x] Commit: `feat(rasterize): pdf to 200-dpi image buffers`
 
 ### 3. File validation and upload route
 

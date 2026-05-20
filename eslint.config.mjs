@@ -29,6 +29,7 @@ const eslintConfig = defineConfig([
     'node_modules/**',
     'coverage/**',
     'playwright-report/**',
+    'scripts/**',
   ]),
 ]);
 
