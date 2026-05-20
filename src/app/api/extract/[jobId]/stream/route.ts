@@ -1,12 +1,17 @@
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import { cropPageToPng } from '@/lib/extract/crop';
 import { ExtractError } from '@/lib/extract/errors';
 import {
   createJobStore,
   type JobStore,
 } from '@/lib/extract/jobStore';
-import { runJob as defaultRunJob, type RunJobInput } from '@/lib/extract/run';
+import {
+  runJob as defaultRunJob,
+  type MaterializeRegion,
+  type RunJobInput,
+} from '@/lib/extract/run';
 import { createSseEmitter } from '@/lib/extract/sse';
 import { defaultStages } from '@/lib/extract/stages';
 import type { SupportedKind } from '@/lib/io/validate';
@@ -109,6 +114,17 @@ export async function GET(
     request.signal.removeEventListener('abort', onAbort);
   };
 
+  // Materializer that writes each detected region's crop into the per-job
+  // temp dir. The runJob orchestrator calls this for every detected region
+  // and patches the record's pngPath with the returned path. The region
+  // download route reads the same path on subsequent GETs.
+  const materializeRegion: MaterializeRegion = async (region, bbox, page) => {
+    const png = await cropPageToPng(page, bbox);
+    const pngPath = join(record.tempDir, `${region}.png`);
+    await writeFile(pngPath, png);
+    return pngPath;
+  };
+
   // Kick off the pipeline without awaiting — the response stream is what
   // carries the work back to the client.
   void (async () => {
@@ -122,6 +138,7 @@ export async function GET(
         emitter,
         stages: defaultStages,
         store,
+        materializeRegion,
       });
     } catch (err) {
       const code =

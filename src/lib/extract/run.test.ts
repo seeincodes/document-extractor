@@ -267,3 +267,97 @@ describe('runJob — non-PDF inputs (temporary)', () => {
     }
   });
 });
+
+describe('runJob — region materialization', () => {
+  it('calls the injected materializer for each detected region and patches pngPath', async () => {
+    const emitter = createSseEmitter();
+    const drain = drainEvents(emitter.stream);
+    const calls: Array<{ region: string; pageIndex: number }> = [];
+
+    await runJob({
+      jobId: 'j_run',
+      bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+      fileKind: 'pdf',
+      emitter,
+      stages: stagesOk,
+      store,
+      materializeRegion: async (region, _bbox, _page) => {
+        // We can't equality-check pages directly, but we can record the
+        // region name and confirm the call happened.
+        calls.push({ region, pageIndex: 0 });
+        return `/tmp/fake/${region}.png`;
+      },
+    });
+    await drain;
+
+    expect(calls.map((c) => c.region)).toEqual([
+      'letterhead',
+      'footer',
+      'signature',
+    ]);
+    const record = store.get('j_run');
+    expect(record?.regions.letterhead?.status).toBe('detected');
+    if (record?.regions.letterhead?.status === 'detected') {
+      expect(record.regions.letterhead.pngPath).toBe('/tmp/fake/letterhead.png');
+    }
+  });
+
+  it('downgrades a region to not_found when materialization throws', async () => {
+    const emitter = createSseEmitter();
+    const drain = drainEvents(emitter.stream);
+
+    await runJob({
+      jobId: 'j_run',
+      bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+      fileKind: 'pdf',
+      emitter,
+      stages: stagesOk,
+      store,
+      materializeRegion: async (region) => {
+        if (region === 'footer') {
+          throw new Error('disk full');
+        }
+        return `/tmp/fake/${region}.png`;
+      },
+    });
+    const events = await drain;
+
+    // Footer should surface as not_found; letterhead and signature still
+    // detected; the pipeline still terminates with done.
+    const footerEvent = events.find(
+      (e) => e.event === 'region_ready' && e.data.region === 'footer',
+    );
+    expect(footerEvent?.event).toBe('region_ready');
+    if (footerEvent?.event === 'region_ready') {
+      expect(footerEvent.data.status).toBe('not_found');
+    }
+    expect(events.at(-1)?.event).toBe('done');
+  });
+
+  it('does not call the materializer for regions that returned null', async () => {
+    const emitter = createSseEmitter();
+    const drain = drainEvents(emitter.stream);
+    const calls: string[] = [];
+
+    await runJob({
+      jobId: 'j_run',
+      bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+      fileKind: 'pdf',
+      emitter,
+      stages: {
+        ...stagesOk,
+        detectSignature: async () => null,
+      },
+      store,
+      materializeRegion: async (region) => {
+        calls.push(region);
+        return `/tmp/fake/${region}.png`;
+      },
+    });
+    await drain;
+
+    expect(calls).not.toContain('signature');
+    expect(calls).toContain('letterhead');
+    expect(calls).toContain('footer');
+  });
+});
