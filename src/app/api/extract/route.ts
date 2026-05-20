@@ -102,6 +102,7 @@ export async function POST(request: Request): Promise<Response> {
       getSharedJobStore().create({
         jobId,
         originalFilename,
+        fileKind: validated.kind,
         tempDir,
         receivedAt: Date.now(),
       });

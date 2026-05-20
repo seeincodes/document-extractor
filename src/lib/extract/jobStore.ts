@@ -52,6 +52,7 @@ export interface JobRecord {
   jobId: string;
   batchId?: string;
   originalFilename: string;
+  fileKind?: string;
   receivedAt: number;
   stage: JobStage;
   tempDir: string;
@@ -67,6 +68,7 @@ export interface NewJobInput {
   jobId: string;
   batchId?: string;
   originalFilename: string;
+  fileKind?: string;
   tempDir: string;
   receivedAt: number;
 }

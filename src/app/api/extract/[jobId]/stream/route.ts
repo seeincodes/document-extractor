@@ -36,15 +36,37 @@ export interface StreamRouteOverrides {
 let runJobImpl: RunJobFn = defaultRunJob;
 let readUploadBytes: (jobId: string) => Promise<Uint8Array> =
   defaultReadUploadBytes;
-let fileKindByJobId: (jobId: string) => SupportedKind = () => 'pdf';
+let fileKindByJobId: (jobId: string) => SupportedKind =
+  defaultFileKindByJobId;
 
 const SAFE_JOB_ID = /^[A-Za-z0-9_-]+$/;
+
+const EXT_TO_KIND: Record<string, SupportedKind> = {
+  pdf: 'pdf',
+  docx: 'docx',
+  png: 'png',
+  jpeg: 'jpeg',
+  jpg: 'jpeg',
+  tiff: 'tiff',
+  tif: 'tiff',
+  webp: 'webp',
+};
+
+function defaultFileKindByJobId(jobId: string): SupportedKind {
+  const record = getSharedJobStore().get(jobId);
+  if (!record) return 'pdf';
+  if (record.fileKind) {
+    return (EXT_TO_KIND[record.fileKind] ?? record.fileKind) as SupportedKind;
+  }
+  const ext = record.originalFilename.split('.').pop()?.toLowerCase() ?? '';
+  return EXT_TO_KIND[ext] ?? 'pdf';
+}
 
 export function __resetForTests(overrides: StreamRouteOverrides = {}): void {
   __resetSharedStoreForTests(overrides.store);
   runJobImpl = overrides.runJob ?? defaultRunJob;
   readUploadBytes = overrides.readUploadBytes ?? defaultReadUploadBytes;
-  fileKindByJobId = overrides.fileKindByJobId ?? (() => 'pdf');
+  fileKindByJobId = overrides.fileKindByJobId ?? defaultFileKindByJobId;
 }
 
 async function defaultReadUploadBytes(jobId: string): Promise<Uint8Array> {

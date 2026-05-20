@@ -29,6 +29,7 @@ export type MaterializeRegion = (
 export interface Stages {
   rasterize(bytes: Uint8Array): Promise<RasterizedPage[]>;
   imageToPages(bytes: Uint8Array): Promise<RasterizedPage[]>;
+  convertDocx(bytes: Uint8Array, tempDir: string): Promise<Uint8Array>;
   detectLetterhead(
     pages: RasterizedPage[],
     jobId: string,
@@ -153,25 +154,21 @@ export async function runJob(input: RunJobInput): Promise<void> {
     }
   };
 
+  const record = store.get(jobId);
+  const tempDir = record?.tempDir ?? '';
+
   try {
     throwIfAborted();
 
-    if (
-      fileKind !== 'pdf' &&
-      fileKind !== 'png' &&
-      fileKind !== 'jpeg' &&
-      fileKind !== 'tiff' &&
-      fileKind !== 'webp'
-    ) {
-      throw new ExtractError(
-        'UNSUPPORTED_FILE_TYPE',
-        `runJob does not yet support fileKind=${fileKind}`,
-      );
-    }
-
+    let pdfBytes = bytes;
     let pages: RasterizedPage[];
 
-    if (
+    if (fileKind === 'docx') {
+      advance('normalizing');
+      pdfBytes = await stages.convertDocx(bytes, tempDir);
+      advance('rasterizing');
+      pages = await stages.rasterize(pdfBytes);
+    } else if (
       fileKind === 'png' ||
       fileKind === 'jpeg' ||
       fileKind === 'tiff' ||
@@ -179,9 +176,14 @@ export async function runJob(input: RunJobInput): Promise<void> {
     ) {
       advance('rasterizing');
       pages = await stages.imageToPages(bytes);
-    } else {
+    } else if (fileKind === 'pdf') {
       advance('rasterizing');
-      pages = await stages.rasterize(bytes);
+      pages = await stages.rasterize(pdfBytes);
+    } else {
+      throw new ExtractError(
+        'UNSUPPORTED_FILE_TYPE',
+        `runJob does not yet support fileKind=${fileKind}`,
+      );
     }
 
     throwIfAborted();
