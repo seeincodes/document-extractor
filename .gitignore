@@ -1,0 +1,72 @@
+# ─────────────────────────────────────────────────────────────────────
+# Document Extractor — .gitignore
+# ─────────────────────────────────────────────────────────────────────
+
+# Node / npm
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+.pnpm-store/
+
+# Next.js build output
+.next/
+out/
+next-env.d.ts
+
+# Production build
+build/
+dist/
+
+# TypeScript
+*.tsbuildinfo
+
+# Testing
+coverage/
+.vitest-cache/
+playwright-report/
+test-results/
+playwright/.cache/
+
+# Environment files (real values)
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Note: `.env` is committed as a template with empty values.
+# Real values go in `.env.local` (above) which IS gitignored.
+
+# Editors / IDE
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Runtime temp files (matches our temp dir naming)
+/tmp/extractor-*/
+extractor-*/
+
+# Docker
+*.tar
+*.tar.gz
+
+# Sample document artifacts the user may drop locally
+samples/.local/
+
+# Skill lifecycle observations (not used in this project but reserved)
+.agents/skills/*/observations/*.md
+!.agents/skills/*/observations/_schema.md
