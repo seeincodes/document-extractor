@@ -8,7 +8,10 @@ export type ExtractErrorCode =
   | 'REGION_NOT_DETECTED'
   | 'NOT_FOUND'
   | 'INVALID_JOB_ID'
-  | 'UNSUPPORTED_REGION';
+  | 'UNSUPPORTED_REGION'
+  | 'TIMEOUT'
+  | 'SERVICE_BUSY'
+  | 'CONVERSION_FAILED';
 
 export class ExtractError extends Error {
   override name = 'ExtractError' as const;
@@ -35,6 +38,9 @@ const USER_MESSAGES: Record<ExtractErrorCode, string> = {
   NOT_FOUND: 'The requested job or region could not be found.',
   INVALID_JOB_ID: 'The job ID has an invalid format.',
   UNSUPPORTED_REGION: 'The requested region is not one we extract.',
+  TIMEOUT: 'Processing took too long. Please try a smaller document.',
+  SERVICE_BUSY: 'The server is busy. Please try again in a moment.',
+  CONVERSION_FAILED: 'Failed to convert the document. The file may be corrupted.',
 };
 
 export function toUserMessage(code: ExtractErrorCode): string {
