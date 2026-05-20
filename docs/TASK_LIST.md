@@ -11,7 +11,7 @@ Each task group references the PRD requirement IDs it satisfies. Subtask checkli
 ### 1. Project scaffold and tooling
 *Satisfies: prerequisite for everything*
 
-- [ ] Initialize Next.js 15 App Router app with TypeScript template
+- [x] Initialize Next.js 15 App Router app with TypeScript template
 - [ ] Configure `tsconfig.json` with `strict: true`, `noUncheckedIndexedAccess: true`, `exactOptionalPropertyTypes: true`
 - [ ] Configure ESLint (`@typescript-eslint`, `eslint-plugin-react`, `eslint-plugin-react-hooks`) and Prettier with project config
 - [ ] Add `npm run typecheck` (`tsc --noEmit`), `npm run lint`, `npm run format` scripts

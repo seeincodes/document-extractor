@@ -10,6 +10,13 @@ yarn-error.log*
 pnpm-debug.log*
 .npm/
 .pnpm-store/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 
 # Next.js build output
 .next/
@@ -39,6 +46,9 @@ playwright/.cache/
 # Note: `.env` is committed as a template with empty values.
 # Real values go in `.env.local` (above) which IS gitignored.
 
+# Vercel
+.vercel
+
 # Editors / IDE
 .vscode/
 !.vscode/extensions.json
@@ -51,6 +61,7 @@ playwright/.cache/
 # OS
 .DS_Store
 Thumbs.db
+*.pem
 
 # Logs
 logs/
