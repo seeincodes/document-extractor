@@ -3,7 +3,8 @@ export type ExtractErrorCode =
   | 'FILE_TOO_LARGE'
   | 'ENCRYPTED_PDF'
   | 'MALFORMED_PDF'
-  | 'PAGE_LIMIT_EXCEEDED';
+  | 'PAGE_LIMIT_EXCEEDED'
+  | 'INTERNAL_ERROR';
 
 export class ExtractError extends Error {
   override name = 'ExtractError' as const;
@@ -24,6 +25,7 @@ const USER_MESSAGES: Record<ExtractErrorCode, string> = {
     "This PDF is password-protected. We don't support encrypted files.",
   MALFORMED_PDF: "This PDF couldn't be parsed. It may be corrupted.",
   PAGE_LIMIT_EXCEEDED: 'This document has too many pages. The limit is 50.',
+  INTERNAL_ERROR: 'Something went wrong on our end. Please try again.',
 };
 
 export function toUserMessage(code: ExtractErrorCode): string {

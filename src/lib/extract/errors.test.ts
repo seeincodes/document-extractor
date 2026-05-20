@@ -34,6 +34,7 @@ describe('toUserMessage', () => {
     ],
     ['MALFORMED_PDF', "This PDF couldn't be parsed. It may be corrupted."],
     ['PAGE_LIMIT_EXCEEDED', 'This document has too many pages. The limit is 50.'],
+    ['INTERNAL_ERROR', 'Something went wrong on our end. Please try again.'],
   ];
 
   for (const [code, message] of expectations) {
