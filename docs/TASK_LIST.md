@@ -51,8 +51,8 @@ _Satisfies: [MVP1], [MVP2], [MVP11]_
 
 _Satisfies: [MVP11] (in conjunction with the pipeline)_
 
-- [ ] Implement `lib/extract/sse.ts` with a thin event-emitter wrapper that produces a `ReadableStream` for App Router routes
-- [ ] Define event types: `stage`, `region_ready`, `done`, `error` (typed shapes documented in `docs/USER_FLOW.md`)
+- [x] Implement `lib/extract/sse.ts` with a thin event-emitter wrapper that produces a `ReadableStream` for App Router routes
+- [x] Define event types: `stage`, `region_ready`, `done`, `error` (typed shapes documented in `docs/USER_FLOW.md`)
 - [ ] Implement `app/api/extract/[jobId]/stream/route.ts` returning `text/event-stream`
 - [ ] Pipeline orchestrator (`lib/extract/run.ts`) emits events as each stage transitions
 - [ ] Wire `error` events to map error codes → user-friendly messages
