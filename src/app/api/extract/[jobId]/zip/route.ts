@@ -1,13 +1,6 @@
 import { readFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
 
-import type Archiver from 'archiver';
-
-const require = createRequire(import.meta.url);
-const archiver = require('archiver') as (
-  format: string,
-  options?: Archiver.ArchiverOptions,
-) => Archiver.Archiver;
+import archiver from 'archiver';
 
 import { toUserMessage, type ExtractErrorCode } from '@/lib/extract/errors';
 import { getSharedJobStore } from '@/lib/extract/sharedJobStore';

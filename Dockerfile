@@ -28,6 +28,8 @@ RUN npm rebuild sharp @napi-rs/canvas
 
 # Copy source and build
 COPY . .
+# postinstall was skipped by --ignore-scripts; copy pdfjs worker for react-pdf
+RUN cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/pdf.worker.min.mjs 2>/dev/null || true
 RUN npm run build
 
 # Non-root runtime user
