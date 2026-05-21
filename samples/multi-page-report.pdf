@@ -179,7 +179,7 @@ endobj
 << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 7 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> >>
 endobj
 9 0 obj
-<< /Length 1293 >>
+<< /Length 1364 >>
 stream
 BT
 /F1 11 Tf
@@ -246,11 +246,20 @@ BT
 72 500 Td
 (Risk management frameworks have been strengthened.) Tj
 ET
-72 172 m 100 180 130 167 160 175 c
-160 175 m 190 182 220 164 260 172 c S
+q
+1.4 w
+0.05 0.05 0.25 RG
+90 176 m
+115 204 145 150 175 178 c
+200 200 225 154 250 176 c
+270 192 290 162 310 174 c
+S
+0.8 w
+90 162 m 290 162 l S
+Q
 BT
 /F1 11 Tf
-72 142 Td
+90 142 Td
 (Jane A. Smith, CEO) Tj
 ET
 BT
@@ -275,9 +284,9 @@ xref
 0000001781 00000 n 
 0000003003 00000 n 
 0000003139 00000 n 
-0000004484 00000 n 
+0000004555 00000 n 
 trailer
 << /Size 11 /Root 1 0 R >>
 startxref
-4621
+4692
 %%EOF

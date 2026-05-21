@@ -22,6 +22,7 @@ function createLogger(): pino.Logger {
     });
   } catch {
     const noop = (): void => {};
+    /* eslint-disable no-console */
     const fallback = {
       info: console.info.bind(console),
       error: console.error.bind(console),
@@ -33,6 +34,7 @@ function createLogger(): pino.Logger {
       child: () => fallback as unknown as pino.Logger,
       level,
     };
+    /* eslint-enable no-console */
     return fallback as unknown as pino.Logger;
   }
 }

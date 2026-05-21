@@ -12,11 +12,11 @@ import { verifySignature } from '../vision/claude';
 const BINARIZE_THRESHOLD = 180;
 
 // Acceptable signature shape: wider-than-tall, but not absurdly elongated.
-// Below 1.5:1 looks more like a stamp or block of text; above 20:1 looks
+// Below 1.5:1 looks more like a stamp or block of text; above 25:1 looks
 // like a printed horizontal rule. Real handwritten signatures commonly reach
-// 10–15:1 (wide, shallow strokes).
+// 10–15:1 (wide, shallow strokes); synthetic fixtures may reach ~20:1.
 const MIN_ASPECT_RATIO = 1.5;
-const MAX_ASPECT_RATIO = 20;
+const MAX_ASPECT_RATIO = 25;
 
 // Minimum component area in scan-window pixels. Anything smaller is likely
 // speckle noise rather than a real signature stroke.

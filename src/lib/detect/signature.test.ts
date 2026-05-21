@@ -137,7 +137,7 @@ describe('detectSignature — synthetic single-component', () => {
     }
   });
 
-  it('rejects a component with too-elongated aspect ratio (> 20:1)', async () => {
+  it('rejects a component with too-elongated aspect ratio (> 25:1)', async () => {
     // 490×10 black bar (aspect 49:1) — looks like a printed line or rule.
     const page = makePage(500, 1000);
     drawRect(page, 5, 850, 490, 10);
@@ -237,6 +237,19 @@ describe('detectSignature — real PDF fixtures', () => {
     } else {
       throw new Error('unexpected result shape');
     }
+  }, 15_000);
+
+  it('returns a sensible result for samples/multi-page-report.pdf', async () => {
+    const pages = await rasterizePages(
+      readBytes(resolve(FIXTURE_DIR, 'multi-page-report.pdf')),
+      { dpi: 200 },
+    );
+    const result = await detectSignature(pages);
+
+    // multi-page-report.pdf has a cursive signature squiggle on the last page.
+    expectFound(result);
+    expect(result.pageIndex).toBe(pages.length - 1);
+    expect(result.bbox.y).toBeGreaterThanOrEqual(0.65);
   }, 15_000);
 
   const PRIVATE_FIXTURE = resolve(PRIVATE_FIXTURE_DIR, 'moro-letter.pdf');
