@@ -8,10 +8,6 @@ import { verifySignature } from '../vision/claude';
 
 // ─── Algorithm parameters ──────────────────────────────────────────────────
 
-// Scan window: only consider components that live in this bottom band of the
-// last page. The spec calls for the bottom 30%.
-const SCAN_WINDOW_RATIO = 0.3;
-
 // Binarization threshold. Pixels with greyscale value < this are "ink."
 const BINARIZE_THRESHOLD = 180;
 
@@ -26,6 +22,13 @@ const MAX_ASPECT_RATIO = 20;
 // speckle noise rather than a real signature stroke.
 const MIN_AREA_PX = 400;
 
+// Maximum fill ratio (ink pixels / bounding-box area). Handwritten signatures
+// are sparse strokes (fill 0.03–0.07); typed/digital signatures are moderately
+// dense (fill 0.10–0.12); printed text stamps and court filing banners are
+// denser still (fill > 0.13). This threshold captures both handwritten and
+// digital signatures while rejecting text-heavy false positives.
+const MAX_FILL_RATIO = 0.12;
+
 // A component must beat this confidence floor to be returned. Below the
 // floor, we surface null with a reason instead of a low-confidence guess.
 // Set conservatively — the vision fallback at 0.6 is the real quality gate.
@@ -38,10 +41,17 @@ const VISION_THRESHOLD = 0.6;
 const FULL_AREA_PX = 6000;
 
 // Saturation point for the isolation signal — measured in scan-window pixels
-// to the nearest other component.
+// to the nearest other candidate (shape-filtered) component.
 const FULL_ISOLATION_PX = 200;
 
 // ─── Public surface ───────────────────────────────────────────────────────
+
+interface ScoredCandidate {
+  component: Component;
+  score: number;
+  pageIndex: number;
+  page: RasterizedPage;
+}
 
 export async function detectSignature(
   pages: RasterizedPage[],
@@ -50,48 +60,52 @@ export async function detectSignature(
     return { status: 'not_found', reason: 'no pages provided' };
   }
 
-  const lastPage = pages.at(-1);
-  if (!lastPage) return notFound();
+  // Scan every page for signature-shaped components. Process pages in
+  // reverse order so the last page's candidates naturally rank first when
+  // scores are tied (signatures are most common near the end).
+  const allCandidates: ScoredCandidate[] = [];
 
-  const windowHeightPx = Math.floor(lastPage.height * SCAN_WINDOW_RATIO);
-  if (windowHeightPx < 4) return notFound();
+  for (let i = pages.length - 1; i >= 0; i--) {
+    const page = pages[i];
+    if (!page || page.height < 4) continue;
 
-  const windowStartY = lastPage.height - windowHeightPx;
-  const binaryMask = await binarizeBottomBand(
-    lastPage,
-    windowStartY,
-    windowHeightPx,
-  );
+    const binaryMask = await binarizeFullPage(page);
+    const components = findConnectedComponents(
+      binaryMask,
+      page.width,
+      page.height,
+    );
 
-  const components = findConnectedComponents(
-    binaryMask,
-    lastPage.width,
-    windowHeightPx,
-  );
+    const candidates = components.filter(isSignatureShaped);
+    if (candidates.length === 0) continue;
 
-  const candidates = components.filter(isSignatureShaped);
-  if (candidates.length === 0) return notFound();
+    for (const c of candidates) {
+      allCandidates.push({
+        component: c,
+        score: scoreConfidence(c, candidates),
+        pageIndex: i,
+        page,
+      });
+    }
+  }
 
-  const scored = candidates
-    .map((c) => ({
-      component: c,
-      score: scoreConfidence(c, components),
-    }))
-    .sort((a, b) => b.score - a.score);
+  if (allCandidates.length === 0) return notFound();
 
-  const best = scored[0];
+  allCandidates.sort((a, b) => b.score - a.score);
+
+  const best = allCandidates[0];
   if (!best || best.score < MIN_CONFIDENCE) return notFound();
 
   const bbox = componentToNormalizedBBox(
     best.component,
-    lastPage.width,
-    lastPage.height,
-    windowStartY,
+    best.page.width,
+    best.page.height,
+    0,
   );
 
   if (best.score < VISION_THRESHOLD) {
     try {
-      const cropBuf = await cropRegionForVision(lastPage, bbox);
+      const cropBuf = await cropRegionForVision(best.page, bbox);
       const budget = new VisionBudget();
       const visionResult = await verifySignature(cropBuf, bbox, budget);
       if (visionResult?.verified) {
@@ -100,6 +114,7 @@ export async function detectSignature(
           bbox: visionResult.bbox,
           detector: 'vision',
           confidence: visionResult.confidence,
+          pageIndex: best.pageIndex,
         };
       }
     } catch (err) {
@@ -112,6 +127,7 @@ export async function detectSignature(
       detector: 'heuristic',
       confidence: best.score,
       reason: 'Confidence below threshold; vision verification unavailable or inconclusive.',
+      pageIndex: best.pageIndex,
     };
   }
 
@@ -120,6 +136,7 @@ export async function detectSignature(
     bbox,
     detector: 'heuristic',
     confidence: best.score,
+    pageIndex: best.pageIndex,
   };
 }
 
@@ -149,23 +166,11 @@ function notFound(): RegionResult {
 
 // ─── Binarization ─────────────────────────────────────────────────────────
 
-async function binarizeBottomBand(
-  page: RasterizedPage,
-  startY: number,
-  windowHeight: number,
-): Promise<Uint8Array> {
-  const { width, greyscale } = page;
-  // Slice the bottom band of the greyscale buffer (single channel, 8-bit).
-  const sliceStart = startY * width;
-  const sliceEnd = sliceStart + width * windowHeight;
-  const band = greyscale.subarray(sliceStart, sliceEnd);
+async function binarizeFullPage(page: RasterizedPage): Promise<Uint8Array> {
+  const { width, height, greyscale } = page;
 
-  // The .greyscale() call before .threshold() is load-bearing: without it
-  // sharp expands the output to 3-channel RGB after thresholding. Per the
-  // task spec, the pipeline is `sharp().greyscale().threshold(180)` — and
-  // .greyscale() pins the colorspace at single-channel through to .raw().
-  const binarized = await sharp(Buffer.from(band), {
-    raw: { width, height: windowHeight, channels: 1 },
+  const binarized = await sharp(Buffer.from(greyscale), {
+    raw: { width, height, channels: 1 },
   })
     .greyscale()
     .threshold(BINARIZE_THRESHOLD)
@@ -314,7 +319,9 @@ function isSignatureShaped(c: Component): boolean {
   const h = c.maxY - c.minY + 1;
   if (h === 0) return false;
   const aspectRatio = w / h;
-  return aspectRatio >= MIN_ASPECT_RATIO && aspectRatio <= MAX_ASPECT_RATIO;
+  if (aspectRatio < MIN_ASPECT_RATIO || aspectRatio > MAX_ASPECT_RATIO) return false;
+  const fillRatio = c.area / (w * h);
+  return fillRatio <= MAX_FILL_RATIO;
 }
 
 function componentToNormalizedBBox(

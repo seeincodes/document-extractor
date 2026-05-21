@@ -152,3 +152,19 @@ These are documented preemptively based on the chosen tech stack. They are the t
 - **Root Cause:** Two issues: (1) `MAX_ASPECT_RATIO` was set to 6, but real handwritten signatures commonly reach 10–15:1 — the wavy line at 14.68:1 was filtered out as "too elongated." (2) `MIN_CONFIDENCE` was 0.35, but the signature scored 0.349 due to low isolation (the horizontal rule and "Jane Doe" text are nearby components, dragging down the isolation signal).
 - **Fix:** Widened aspect ratio acceptance from 2–6 to 1.5–20 (still filters horizontal rules at 100+:1). Lowered `MIN_CONFIDENCE` from 0.35 to 0.25 (the vision fallback threshold at 0.6 remains the real quality gate). Commit 7445dc1.
 - **Prevention:** The `stages.test.ts` and `signature.test.ts` tests now accept `unverified` status (confidence below 0.6 but above 0.25) as a valid outcome for the clean-letter fixture.
+
+### [2026-05-20] Signature detection picks up court filing stamps and bold headers instead of handwritten signatures
+
+- **Error:** On multi-page legal PDFs, signature detection returns dense text blocks (e.g., "FILED: ONONDAGA COUNTY CLERK 08/31/2023" or "THE LAW OFFICE OF SCOTT D. CERIO") with confidence 1.0, while actual handwritten signatures are ignored.
+- **Context:** User uploaded a 16-page legal PDF with handwritten signatures on pages 2, 3, and 7. The previous algorithm only scanned the bottom 30% of the last page. After fixing that to scan all pages, text stamps and bold headers scored higher than actual signatures because they had larger connected-component areas.
+- **Root Cause:** Three issues: (1) Only scanning the bottom 30% of the last page missed signatures on other pages or at different vertical positions. (2) Court filing stamps and bold text headers pass the aspect-ratio filter (1.5:1–20:1) because they are wide text blocks. (3) No fill-ratio check existed to distinguish sparse handwritten strokes from dense printed text.
+- **Fix:** (a) Rewrote `detectSignature()` to scan all pages in reverse order, collecting candidates globally and returning the best. (b) Added `pageIndex` to `RegionResult` so the cropper extracts from the correct page. (c) Added `MAX_FILL_RATIO = 0.12` filter — handwritten signatures have fill 0.03–0.07; court stamps and headers have fill 0.13+. (d) Updated `scoreConfidence()` to compare isolation only against other signature-shaped candidates, not all ink components. Commit 6abb95b.
+- **Prevention:** `signature.test.ts` now uses a sparse `drawStroke()` helper (fill ~5–10%) instead of solid `drawRect()` (fill 100%) for synthetic signature tests, ensuring the fill-ratio filter is exercised in unit tests. Real-PDF integration tests against `clean-letter.pdf` remain as regression guards.
+
+### [2026-05-20] Console 404 errors for region image URLs after HMR in dev mode
+
+- **Error:** After extraction completes, the browser console shows red 404 errors for `GET /api/extract/j_xxx/region/letterhead` (and footer, signature). The images initially load (200) but fail on subsequent requests.
+- **Context:** Next.js dev server with Turbopack. The `sharedJobStore.ts` module declares `let active: JobStore = createJobStore()` at module scope.
+- **Root Cause:** When Next.js HMR re-evaluates the module (triggered by any server-side file save or Turbopack recompilation), the module-level `let active` re-initializes to a fresh empty store. All in-flight jobs become unreachable — the region route handler calls `getSharedJobStore().get(jobId)` and gets `undefined`, returning 404. The `<img>` tags on the page still reference the old job's URLs.
+- **Fix:** Persist the job store on `globalThis` so it survives HMR module re-evaluations: `const g = globalThis as ... ; let active = g.__jobStore ?? createJobStore(); g.__jobStore = active;`. This is the standard Next.js pattern for dev-mode singletons.
+- **Prevention:** The `__resetSharedStoreForTests` function also updates `g.__jobStore` to keep test isolation intact.

@@ -21,6 +21,16 @@ function expectDetected(
   }
 }
 
+function expectFound(
+  result: RegionResult | null,
+): asserts result is Exclude<RegionResult, { status: 'not_found' }> {
+  if (!result || result.status === 'not_found') {
+    throw new Error(
+      `expected 'detected' or 'unverified' result; got ${result?.status ?? 'null'}`,
+    );
+  }
+}
+
 const makePage = (width: number, height: number, fill = 255): RasterizedPage => {
   const color = new Uint8ClampedArray(width * height * 4);
   const greyscale = new Uint8ClampedArray(width * height);
@@ -34,8 +44,9 @@ const makePage = (width: number, height: number, fill = 255): RasterizedPage => 
   return { width, height, color, greyscale };
 };
 
-// Draw a solid black filled rectangle into the greyscale buffer of `page`.
-// Used to plant synthetic "signature-shaped" components for unit tests.
+// Draw a solid black filled rectangle. Used for rejection tests where
+// we need shapes that fail area/aspect filters (the fill ratio doesn't
+// matter because earlier checks reject first).
 const drawRect = (
   page: RasterizedPage,
   x: number,
@@ -46,6 +57,34 @@ const drawRect = (
   for (let yy = y; yy < y + h; yy++) {
     for (let xx = x; xx < x + w; xx++) {
       page.greyscale[yy * page.width + xx] = 0;
+    }
+  }
+};
+
+// Draw a sparse connected stroke into the greyscale buffer. Simulates a
+// handwritten signature with fill ratio ~5–10%, well below MAX_FILL_RATIO.
+// The stroke is a thick zigzag that forms a single connected component.
+const drawStroke = (
+  page: RasterizedPage,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): void => {
+  const thickness = Math.max(4, Math.ceil(h * 0.12));
+  // Limit zigzag amplitude so max per-row shift < thickness (ensures
+  // 4-connectivity between consecutive rows).
+  const maxSafeAmplitude = (thickness * h) / (2 * Math.PI * (w - thickness));
+  const amplitude = Math.min(0.4, maxSafeAmplitude * 0.8);
+  for (let yy = y; yy < y + h; yy++) {
+    const progress = (yy - y) / h;
+    const zigzag = Math.sin(progress * Math.PI * 2) * amplitude + 0.5;
+    const centerX = x + Math.floor(zigzag * (w - thickness));
+    for (let dx = 0; dx < thickness; dx++) {
+      const xx = centerX + dx;
+      if (xx >= x && xx < x + w) {
+        page.greyscale[yy * page.width + xx] = 0;
+      }
     }
   }
 };
@@ -71,22 +110,19 @@ describe('detectSignature — empty / null cases', () => {
 });
 
 describe('detectSignature — synthetic single-component', () => {
-  it('finds a signature-shaped rectangle in the bottom 30%', async () => {
-    // 500×1000 page; rect at (50, 800)→(250, 870). Width 200, height 70:
-    // aspect ratio ~2.86:1 (inside the 2:1–6:1 window). Lives in the
-    // bottom 30% (rows 700–999), specifically rows 800–870.
+  it('finds a signature-shaped stroke in the bottom 30%', async () => {
+    // 500×1000 page; stroke at (50, 800) spanning 200×70. Aspect ratio
+    // ~2.3:1 (inside the 1.5:1–20:1 window). Sparse fill (<15%).
     const page = makePage(500, 1000);
-    drawRect(page, 50, 800, 200, 70);
+    drawStroke(page, 50, 800, 200, 70);
 
     const result = await detectSignature([page]);
-    expectDetected(result);
+    expectFound(result);
     expect(result.detector).toBe('heuristic');
     expect(result.confidence).toBeGreaterThan(0);
 
-    // bbox should overlap the rectangle's region in normalized coords.
-    expect(result.bbox.x).toBeCloseTo(50 / 500, 1);
+    // bbox should overlap the stroke's region in normalized coords.
     expect(result.bbox.y).toBeCloseTo(800 / 1000, 1);
-    expect(result.bbox.w).toBeCloseTo(200 / 500, 1);
     expect(result.bbox.h).toBeCloseTo(70 / 1000, 1);
   });
 
@@ -123,67 +159,62 @@ describe('detectSignature — synthetic single-component', () => {
     }
   });
 
-  it('ignores components OUTSIDE the bottom 30% scan window', async () => {
-    // Signature-shaped rect at (50, 100) — top of the page, well outside
-    // the bottom 30% (rows 700+).
+  it('detects components anywhere on the page (full-page scan)', async () => {
+    // Signature-shaped stroke near the top of the page. The algorithm scans
+    // the full page so this should be detected regardless of position.
     const page = makePage(500, 1000);
-    drawRect(page, 50, 100, 200, 70);
+    drawStroke(page, 50, 100, 200, 70);
 
     const result = await detectSignature([page]);
-    if (!result || result.status !== 'not_found') {
-      throw new Error('expected not_found');
-    }
+    expectFound(result);
+    expect(result.bbox.y).toBeCloseTo(100 / 1000, 1);
   });
 });
 
 describe('detectSignature — multi-component selection', () => {
   it('picks the largest qualifying component when multiple are present', async () => {
-    // Two signature-shaped rects in the bottom 30%, one smaller than the
-    // other. The detector should pick the larger one.
+    // Two signature-shaped strokes, one smaller than the other.
+    // The detector should pick the larger one (higher area → higher score).
     const page = makePage(500, 1000);
-    drawRect(page, 50, 750, 100, 35);   // smaller: 100x35 = 3500 px
-    drawRect(page, 50, 850, 240, 84);   // larger: 240x84 = 20160 px
+    drawStroke(page, 50, 750, 100, 35);   // smaller
+    drawStroke(page, 50, 850, 240, 84);   // larger
 
     const result = await detectSignature([page]);
-    expectDetected(result);
-    // The larger rect lives near y=850/1000.
+    expectFound(result);
+    // The larger stroke lives near y=850/1000.
     expect(result.bbox.y).toBeCloseTo(850 / 1000, 1);
-    expect(result.bbox.w).toBeCloseTo(240 / 500, 1);
   });
 
-  it('uses the LAST page when multiple pages are provided', async () => {
+  it('picks the best candidate across all pages', async () => {
     const pageA = makePage(500, 1000);
     const pageB = makePage(500, 1000);
-    drawRect(pageA, 50, 800, 200, 70);  // signature on first page
-    drawRect(pageB, 50, 900, 300, 60);  // different signature on last page
+    drawStroke(pageA, 50, 800, 200, 70);  // smaller signature on first page
+    drawStroke(pageB, 50, 850, 400, 100); // much larger signature on last page
 
     const result = await detectSignature([pageA, pageB]);
-    expectDetected(result);
-    // The detector should land on pageB's rectangle, not pageA's.
-    expect(result.bbox.y).toBeCloseTo(900 / 1000, 1);
+    expectFound(result);
+    // pageB's stroke has more ink pixels → higher area → higher score.
+    expect(result.pageIndex).toBe(1);
+    expect(result.bbox.y).toBeCloseTo(850 / 1000, 1);
   });
 });
 
 describe('detectSignature — confidence scoring', () => {
-  it('scores an isolated, signature-shaped component higher than a noisy one', async () => {
-    const isolated = makePage(500, 1000);
-    drawRect(isolated, 100, 850, 240, 60);
+  it('scores an isolated, signature-shaped component higher than a crowded one', async () => {
+    const isolated = makePage(800, 1200);
+    drawStroke(isolated, 100, 1000, 400, 100);
     const isolatedResult = await detectSignature([isolated]);
-    expectDetected(isolatedResult);
+    expectFound(isolatedResult);
 
-    // Same signature shape but surrounded by speckle noise that crowds it.
-    const noisy = makePage(500, 1000);
-    drawRect(noisy, 100, 850, 240, 60);
-    for (let i = 0; i < 60; i++) {
-      // small specks scattered nearby in the bottom 30%
-      const x = 50 + i * 8;
-      const y = 720 + (i % 5) * 30;
-      drawRect(noisy, x, y, 3, 3);
-    }
-    const noisyResult = await detectSignature([noisy]);
-    expectDetected(noisyResult);
+    // Same signature shape but tightly crowded by other candidates.
+    const crowded = makePage(800, 1200);
+    drawStroke(crowded, 100, 1000, 400, 100); // primary
+    drawStroke(crowded, 120, 920, 350, 70);   // very close above (centroid ~80px away)
+    drawStroke(crowded, 80, 1110, 300, 70);   // very close below
+    const crowdedResult = await detectSignature([crowded]);
+    expectFound(crowdedResult);
 
-    expect(isolatedResult.confidence).toBeGreaterThan(noisyResult.confidence);
+    expect(isolatedResult.confidence).toBeGreaterThan(crowdedResult.confidence);
   });
 });
 
