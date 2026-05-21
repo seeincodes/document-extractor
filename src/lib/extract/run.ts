@@ -67,13 +67,18 @@ const PROGRESS: Record<JobStage, number> = {
   failed: 1,
 };
 
-// Which page of the document each region's bbox refers to. Letterhead is
-// always on page 1; footer and signature are on the last page (per the
-// MEMO's Stage 4 design).
+// Which page of the document each region's bbox refers to. When the
+// detection result includes a pageIndex, use that directly. Otherwise
+// fall back to the legacy heuristic: first page for letterhead, last
+// page for footer/signature.
 function pageForRegion(
   region: RegionName,
   pages: RasterizedPage[],
+  result?: RegionResult | null,
 ): RasterizedPage | undefined {
+  if (result && result.status !== 'not_found' && result.pageIndex !== undefined) {
+    return pages[result.pageIndex];
+  }
   if (region === 'letterhead') return pages[0];
   return pages.at(-1);
 }
@@ -117,7 +122,7 @@ export async function runJob(input: RunJobInput): Promise<void> {
     // a missing crop is a soft failure the UI can render distinctly.
     let materialized = result;
     if (materializeRegion) {
-      const page = pageForRegion(region, pages);
+      const page = pageForRegion(region, pages, result);
       if (!page) {
         emitNotFound(region, 'no page available to crop from');
         return;
