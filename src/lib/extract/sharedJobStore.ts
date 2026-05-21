@@ -1,13 +1,12 @@
 import { createJobStore, type JobStore } from './jobStore';
 
-// Process-wide singleton: all routes share one JobStore so a POST that
-// creates a job and a subsequent GET that reads it see the same record.
-// Without this, each route's module-scoped `createJobStore()` produces
-// an isolated map and the routes can't communicate.
-//
-// Tests swap the active store via __resetSharedStoreForTests so they run
-// in isolation; production code only uses getSharedJobStore().
-let active: JobStore = createJobStore();
+// Persist the store on globalThis so it survives Next.js HMR module
+// re-evaluations in dev mode. Without this, every hot-reload creates a
+// fresh empty store and in-flight jobs become unreachable (404).
+const g = globalThis as typeof globalThis & { __jobStore?: JobStore };
+
+let active: JobStore = g.__jobStore ?? createJobStore();
+g.__jobStore = active;
 
 export function getSharedJobStore(): JobStore {
   return active;
@@ -15,5 +14,6 @@ export function getSharedJobStore(): JobStore {
 
 export function __resetSharedStoreForTests(store?: JobStore): JobStore {
   active = store ?? createJobStore();
+  g.__jobStore = active;
   return active;
 }
