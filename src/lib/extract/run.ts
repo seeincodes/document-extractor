@@ -6,6 +6,8 @@ import {
   toUserMessage,
   type ExtractErrorCode,
 } from './errors';
+
+const DEFAULT_JOB_TIMEOUT_MS = 60_000;
 import type {
   JobStage,
   JobStore,
@@ -26,6 +28,8 @@ export type MaterializeRegion = (
 
 export interface Stages {
   rasterize(bytes: Uint8Array): Promise<RasterizedPage[]>;
+  imageToPages(bytes: Uint8Array): Promise<RasterizedPage[]>;
+  convertDocx(bytes: Uint8Array, tempDir: string): Promise<Uint8Array>;
   detectLetterhead(
     pages: RasterizedPage[],
     jobId: string,
@@ -47,10 +51,8 @@ export interface RunJobInput {
   emitter: SseEmitter;
   stages: Stages;
   store: JobStore;
-  // Optional: writes a region's crop to disk and returns the path. When
-  // absent, regions are detected but no PNG is written — useful for the
-  // dev/test paths where the route's materializer hasn't been wired yet.
   materializeRegion?: MaterializeRegion;
+  timeoutMs?: number;
 }
 
 const PROGRESS: Record<JobStage, number> = {
@@ -142,18 +144,49 @@ export async function runJob(input: RunJobInput): Promise<void> {
     });
   };
 
+  const timeout = input.timeoutMs ?? DEFAULT_JOB_TIMEOUT_MS;
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), timeout);
+
+  const throwIfAborted = (): void => {
+    if (ac.signal.aborted) {
+      throw new ExtractError('TIMEOUT', `Job exceeded ${timeout}ms timeout.`);
+    }
+  };
+
+  const record = store.get(jobId);
+  const tempDir = record?.tempDir ?? '';
+
   try {
-    if (fileKind !== 'pdf') {
-      // Groups 14 (DOCX) and 15 (images) will lift this restriction.
+    throwIfAborted();
+
+    let pdfBytes = bytes;
+    let pages: RasterizedPage[];
+
+    if (fileKind === 'docx') {
+      advance('normalizing');
+      pdfBytes = await stages.convertDocx(bytes, tempDir);
+      advance('rasterizing');
+      pages = await stages.rasterize(pdfBytes);
+    } else if (
+      fileKind === 'png' ||
+      fileKind === 'jpeg' ||
+      fileKind === 'tiff' ||
+      fileKind === 'webp'
+    ) {
+      advance('rasterizing');
+      pages = await stages.imageToPages(bytes);
+    } else if (fileKind === 'pdf') {
+      advance('rasterizing');
+      pages = await stages.rasterize(pdfBytes);
+    } else {
       throw new ExtractError(
         'UNSUPPORTED_FILE_TYPE',
         `runJob does not yet support fileKind=${fileKind}`,
       );
     }
 
-    advance('rasterizing');
-    const pages = await stages.rasterize(bytes);
-
+    throwIfAborted();
     advance('detecting_letterhead');
     await finishRegion(
       'letterhead',
@@ -161,6 +194,7 @@ export async function runJob(input: RunJobInput): Promise<void> {
       pages,
     );
 
+    throwIfAborted();
     advance('detecting_footer');
     await finishRegion(
       'footer',
@@ -168,6 +202,7 @@ export async function runJob(input: RunJobInput): Promise<void> {
       pages,
     );
 
+    throwIfAborted();
     advance('detecting_signature');
     await finishRegion(
       'signature',
@@ -175,8 +210,6 @@ export async function runJob(input: RunJobInput): Promise<void> {
       pages,
     );
 
-    // Terminal stage: update the store but emit `done` rather than `stage`,
-    // matching the wire format in docs/USER_FLOW.md.
     store.update(jobId, { stage: 'done' });
     emitter.emit({ event: 'done', data: { jobId } });
   } catch (err) {
@@ -190,6 +223,7 @@ export async function runJob(input: RunJobInput): Promise<void> {
     };
     emitter.emit(errorEvent);
   } finally {
+    clearTimeout(timer);
     emitter.close();
   }
 }

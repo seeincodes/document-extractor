@@ -88,7 +88,7 @@ function DetectedBody({
           )}
         >
           {unverified && <AlertCircle className="size-3" aria-hidden />}
-          {detector} · {pct}%
+          {detector === 'vision' ? 'vision-verified' : detector} · {pct}%
         </span>
         {/* shadcn Button wraps Base UI <button>; for a native browser download
             we render an <a download> styled with buttonVariants. */}

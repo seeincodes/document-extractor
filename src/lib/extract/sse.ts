@@ -57,6 +57,10 @@ export function createSseEmitter(): SseEmitter {
   const stream = new ReadableStream<Uint8Array>({
     start(c) {
       controller = c;
+      // Tell the browser to wait ~24 days before any reconnect attempt.
+      // Combined with the client-side onerror close(), this prevents the
+      // spurious 404 that fires when the server closes the finished stream.
+      c.enqueue(ENCODER.encode('retry: 2147483647\n\n'));
     },
   });
 

@@ -13,6 +13,7 @@ import {
 } from '@/lib/extract/sharedJobStore';
 import { createJobTempDir, cleanupTempDir } from '@/lib/io/tempDir';
 import { validateUpload } from '@/lib/io/validate';
+import { isQueueFull } from '@/lib/queue';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -56,9 +57,13 @@ function extractErrorToResponse(err: ExtractError): Response {
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    // 1. Cheap pre-check: if the client advertises a Content-Length above our
-    //    cap, reject before reading the body. Truthful clients save us a
-    //    25 MB+ buffer; lying clients still get caught at step 3.
+    if (isQueueFull()) {
+      return errorResponse(503, {
+        code: 'SERVICE_BUSY',
+        message: toUserMessage('SERVICE_BUSY'),
+      });
+    }
+
     const contentLength = request.headers.get('content-length');
     if (contentLength && Number(contentLength) > maxBytes) {
       throw new ExtractError(
@@ -97,6 +102,7 @@ export async function POST(request: Request): Promise<Response> {
       getSharedJobStore().create({
         jobId,
         originalFilename,
+        fileKind: validated.kind,
         tempDir,
         receivedAt: Date.now(),
       });

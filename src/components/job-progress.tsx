@@ -58,63 +58,98 @@ export function JobProgress({ jobId, onEvent }: JobProgressProps) {
     onEventRef.current = onEvent;
   });
 
-  // The component expects the parent to remount it via `key={jobId}` when
-  // the job changes — that's the idiomatic React 19 way to reset all the
-  // useState defaults rather than calling setters synchronously in an
-  // effect (which violates react-hooks/set-state-in-effect).
+  // Use fetch + ReadableStream instead of EventSource to consume the SSE
+  // stream. EventSource has built-in reconnection that fires spurious 404
+  // errors when the server closes the finished stream (and React StrictMode's
+  // double-mount in dev makes it worse). A plain fetch gives full control.
   useEffect(() => {
-    const es = new EventSource(`/api/extract/${jobId}/stream`);
+    const ac = new AbortController();
 
-    const safeParse = <T,>(raw: string): T | null => {
+    void (async () => {
+      let res: Response;
       try {
-        return JSON.parse(raw) as T;
+        res = await fetch(`/api/extract/${jobId}/stream`, {
+          signal: ac.signal,
+        });
       } catch {
-        return null;
+        // Aborted by cleanup — expected in StrictMode's double-mount.
+        return;
       }
-    };
+      if (!res.ok || !res.body) {
+        setErrorMsg('Failed to connect to extraction stream.');
+        setStage('failed');
+        setTerminated(true);
+        return;
+      }
 
-    const onStage = (e: MessageEvent) => {
-      const data = safeParse<{ stage: JobStage; progress: number }>(e.data);
-      if (!data) return;
-      setStage(data.stage);
-      setProgress(Math.max(0, Math.min(1, data.progress)));
-      onEventRef.current({ event: 'stage', data });
-    };
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
 
-    const onRegion = (e: MessageEvent) => {
-      const data = safeParse<RegionReadyData>(e.data);
-      if (!data) return;
-      onEventRef.current({ event: 'region_ready', data });
-    };
+      const dispatch = (event: string, raw: string): void => {
+        let data: unknown;
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          return;
+        }
 
-    const onDone = (e: MessageEvent) => {
-      const data = safeParse<{ jobId: string }>(e.data);
-      if (!data) return;
-      setProgress(1);
-      setStage('done');
-      setDoneMsg(true);
-      setTerminated(true);
-      onEventRef.current({ event: 'done', data });
-      es.close();
-    };
+        if (event === 'stage') {
+          const d = data as { stage: JobStage; progress: number };
+          setStage(d.stage);
+          setProgress(Math.max(0, Math.min(1, d.progress)));
+          onEventRef.current({ event: 'stage', data: d });
+        } else if (event === 'region_ready') {
+          onEventRef.current({
+            event: 'region_ready',
+            data: data as RegionReadyData,
+          });
+        } else if (event === 'done') {
+          setProgress(1);
+          setStage('done');
+          setDoneMsg(true);
+          setTerminated(true);
+          onEventRef.current({
+            event: 'done',
+            data: data as { jobId: string },
+          });
+        } else if (event === 'error') {
+          const d = data as ErrorData;
+          setErrorMsg(d.message);
+          setStage('failed');
+          setTerminated(true);
+          onEventRef.current({ event: 'error', data: d });
+        }
+      };
 
-    const onError = (e: MessageEvent) => {
-      const data = safeParse<ErrorData>(e.data);
-      if (!data) return;
-      setErrorMsg(data.message);
-      setStage('failed');
-      setTerminated(true);
-      onEventRef.current({ event: 'error', data });
-      es.close();
-    };
+      try {
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
 
-    es.addEventListener('stage', onStage as EventListener);
-    es.addEventListener('region_ready', onRegion as EventListener);
-    es.addEventListener('done', onDone as EventListener);
-    es.addEventListener('error', onError as EventListener);
+          // Drain complete SSE frames (separated by blank lines).
+          let sep = buffer.indexOf('\n\n');
+          while (sep !== -1) {
+            const frame = buffer.slice(0, sep);
+            buffer = buffer.slice(sep + 2);
+            let ev = '';
+            let dat = '';
+            for (const line of frame.split('\n')) {
+              if (line.startsWith('event:')) ev = line.slice(6).trimStart();
+              else if (line.startsWith('data:')) dat = line.slice(5).trimStart();
+            }
+            if (ev && dat) dispatch(ev, dat);
+            sep = buffer.indexOf('\n\n');
+          }
+        }
+      } catch {
+        // AbortError from cleanup — silently stop.
+      }
+    })();
 
     return () => {
-      es.close();
+      ac.abort();
     };
   }, [jobId]);
 

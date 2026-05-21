@@ -30,6 +30,7 @@ const eslintConfig = defineConfig([
     'coverage/**',
     'playwright-report/**',
     'scripts/**',
+    'public/pdf.worker.min.mjs',
   ]),
 ]);
 

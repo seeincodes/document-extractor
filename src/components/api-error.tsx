@@ -46,5 +46,11 @@ function titleForCode(code: ApiErrorShape['code']): string {
       return 'Invalid job ID';
     case 'UNSUPPORTED_REGION':
       return 'Unsupported region';
+    case 'TIMEOUT':
+      return 'Processing timed out';
+    case 'SERVICE_BUSY':
+      return 'Server busy';
+    case 'CONVERSION_FAILED':
+      return 'Conversion failed';
   }
 }

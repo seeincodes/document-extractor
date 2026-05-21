@@ -267,7 +267,7 @@ describe('GET /api/extract/[jobId]/stream — default stages end-to-end', () => 
 
     const signature = regions.find((r) => r.region === 'signature');
     expect(signature).toBeDefined();
-    expect(['detected', 'not_found']).toContain(signature?.status);
+    expect(['detected', 'unverified', 'not_found']).toContain(signature?.status);
 
     rmSync(realTempDir, { recursive: true, force: true });
   }, 15_000);

@@ -1,20 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import type { PdfPreviewProps } from '@/lib/ui/types';
 
-// Configure the pdf.js worker in the same module that renders <Document>, per
-// the react-pdf README's WARNING. Using `new URL(..., import.meta.url)` lets
-// Next.js's bundler emit a co-located worker asset, so we don't depend on the
-// unpkg CDN at runtime.
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).toString();
+// Configure the pdf.js worker. Turbopack rewrites the `new URL(…,
+// import.meta.url)` pattern, causing a version mismatch between the API
+// and worker modules. Serving from public/ avoids bundler interference.
+// The file is kept in sync by the postinstall script.
+pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
 type LoadState =
   | { kind: 'empty' }
@@ -92,6 +89,17 @@ export function PdfPreview({ file, className }: PdfPreviewProps) {
     };
   }, [file, isPdf]);
 
+  // Memoize the file prop so react-pdf doesn't warn about equal-but-new
+  // object references triggering unnecessary reloads.
+  const readyData =
+    asyncResult !== null && !('error' in asyncResult)
+      ? asyncResult.data
+      : null;
+  const fileData = useMemo(
+    () => (readyData !== null ? { data: readyData } : null),
+    [readyData],
+  );
+
   // Derive the render state from props + async result. If the async result
   // is for a stale file (user picked a new one before the previous load
   // finished), treat it as still loading.
@@ -141,7 +149,7 @@ export function PdfPreview({ file, className }: PdfPreviewProps) {
   return (
     <PreviewShell className={className}>
       <Document
-        file={{ data: state.data }}
+        file={fileData ?? { data: state.data }}
         onLoadSuccess={({ numPages: n }) => {
           if (file) setPdfMeta({ fileKey: file, numPages: n });
         }}
