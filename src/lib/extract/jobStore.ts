@@ -37,6 +37,10 @@ export type RegionResult =
       // UI can surface to distinguish a single-page footer from a recurring
       // page-number band.
       note?: string;
+      // Which page (0-based) the region was found on. When absent, the
+      // orchestrator falls back to the legacy heuristic (first page for
+      // letterhead, last page for footer/signature).
+      pageIndex?: number;
     }
   | { status: 'not_found'; reason: string }
   | {
@@ -46,6 +50,7 @@ export type RegionResult =
       detector: 'heuristic';
       confidence: number;
       reason: string;
+      pageIndex?: number;
     };
 
 export interface JobRecord {
