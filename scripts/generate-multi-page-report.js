@@ -70,15 +70,24 @@ function buildPage(pageNumber, totalPages) {
   }
 
   if (pageNumber === totalPages) {
-    // Signature on last page
+    // Signature on last page — a multi-loop cursive squiggle with
+    // enough vertical variation to be detected as a real signature.
     const sigY = fromTop(620);
-    // Draw a wavy line for signature
-    lines.push(`72 ${sigY} m 100 ${sigY + 8} 130 ${sigY - 5} 160 ${sigY + 3} c`);
-    lines.push(`160 ${sigY + 3} m 190 ${sigY + 10} 220 ${sigY - 8} 260 ${sigY} c S`);
+    lines.push('q');
+    lines.push('1.4 w');
+    lines.push('0.05 0.05 0.25 RG');
+    lines.push(`90 ${sigY + 4} m`);
+    lines.push(`115 ${sigY + 32} 145 ${sigY - 22} 175 ${sigY + 6} c`);
+    lines.push(`200 ${sigY + 28} 225 ${sigY - 18} 250 ${sigY + 4} c`);
+    lines.push(`270 ${sigY + 20} 290 ${sigY - 10} 310 ${sigY + 2} c`);
+    lines.push('S');
+    lines.push('0.8 w');
+    lines.push(`90 ${sigY - 10} m 290 ${sigY - 10} l S`);
+    lines.push('Q');
 
     lines.push('BT');
     lines.push('/F1 11 Tf');
-    lines.push(`72 ${fromTop(650)} Td`);
+    lines.push(`90 ${fromTop(650)} Td`);
     lines.push(`(${pdfStr('Jane A. Smith, CEO')}) Tj`);
     lines.push('ET');
   }

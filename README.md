@@ -139,4 +139,4 @@ See `samples/README.md` for details.
 - Letterhead is in the top portion of page 1.
 - Footer is in the bottom portion of the last page.
 - Signature is scanned across all pages (reverse order, last page first). The best candidate across all pages is selected.
-- The signature heuristic looks for connected components that are wider than tall (1.5:1 to 20:1 aspect ratio) with a sparse fill ratio (≤ 12%) to reject dense text blocks.
+- The signature heuristic looks for connected components that are wider than tall (1.5:1 to 25:1 aspect ratio) with a sparse fill ratio (≤ 12%) to reject dense text blocks.
