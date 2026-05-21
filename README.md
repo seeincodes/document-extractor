@@ -2,6 +2,11 @@
 
 Upload a document and automatically extract its **letterhead**, **footer**, and **signature** regions. Built with Next.js (App Router) and TypeScript.
 
+## Prerequisites
+
+- **Node.js 20 LTS** (20.x)
+- npm 10+
+
 ## Quick Start
 
 ```bash
@@ -80,7 +85,7 @@ src/
 |-----------|------------|-----------|
 | Letterhead | Page 1     | Top 18% (smart boundary scan) |
 | Footer     | Last page  | Bottom 12% (smart boundary scan) |
-| Signature  | Last page  | Bottom 30% (connected-components heuristic) |
+| Signature  | All pages (reverse scan) | Full page (connected-components heuristic) |
 
 ## Environment Variables
 
@@ -133,5 +138,5 @@ See `samples/README.md` for details.
 - Documents contain at most one letterhead, footer, and signature each.
 - Letterhead is in the top portion of page 1.
 - Footer is in the bottom portion of the last page.
-- Signature is in the bottom portion of the last page.
-- The signature heuristic looks for connected components that are wider than tall (2:1 to 6:1 aspect ratio).
+- Signature is scanned across all pages (reverse order, last page first). The best candidate across all pages is selected.
+- The signature heuristic looks for connected components that are wider than tall (1.5:1 to 20:1 aspect ratio) with a sparse fill ratio (≤ 12%) to reject dense text blocks.
