@@ -2,15 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
+import { FileText, ImageIcon } from 'lucide-react';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import type { PdfPreviewProps } from '@/lib/ui/types';
 
-// Configure the pdf.js worker. Turbopack rewrites the `new URL(…,
-// import.meta.url)` pattern, causing a version mismatch between the API
-// and worker modules. Serving from public/ avoids bundler interference.
-// The file is kept in sync by the postinstall script.
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
 type LoadState =
@@ -28,37 +24,28 @@ function PreviewShell({
   children: React.ReactNode;
 }) {
   return (
-    <Card className={cn('w-full max-w-md', className)}>
-      <CardHeader>
-        <CardTitle>Preview</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="max-h-[600px] overflow-y-auto rounded-md ring-1 ring-zinc-200/60">
-          {children}
-        </div>
-      </CardContent>
-    </Card>
+    <div className={cn('overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900', className)}>
+      <div className="flex items-center gap-2 border-b border-zinc-100 px-4 py-3 dark:border-zinc-800">
+        <FileText className="size-4 text-zinc-400" aria-hidden />
+        <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Preview</h3>
+      </div>
+      <div className="max-h-[600px] overflow-y-auto bg-zinc-50/50 dark:bg-zinc-950/30">
+        {children}
+      </div>
+    </div>
   );
 }
 
-function Placeholder({ children }: { children: React.ReactNode }) {
+function Placeholder({ children, icon }: { children: React.ReactNode; icon?: React.ReactNode }) {
   return (
-    <div className="flex h-[560px] items-center justify-center px-6 text-center text-sm text-zinc-500">
-      {children}
+    <div className="flex h-[400px] flex-col items-center justify-center gap-3 px-6 text-center">
+      {icon ?? <ImageIcon className="size-8 text-zinc-200 dark:text-zinc-700" aria-hidden />}
+      <p className="max-w-[200px] text-sm text-zinc-400 dark:text-zinc-500">{children}</p>
     </div>
   );
 }
 
 export function PdfPreview({ file, className }: PdfPreviewProps) {
-  // The synchronous branches (no file, wrong type, loading) are all derived
-  // from `file` plus the keyed async result in render. The effect only
-  // writes to state from inside the promise callbacks — never synchronously
-  // — which satisfies react-hooks/set-state-in-effect.
-  //
-  // Both `asyncResult` and `pdfMeta` carry the originating `File` so the
-  // render path can ignore stale values from a previous file swap. Without
-  // the key, a fast onLoadSuccess from a previous PDF could briefly render
-  // its page count against the new file's data.
   const isPdf = file !== null && file.type.startsWith('application/pdf');
   const [asyncResult, setAsyncResult] = useState<
     | { fileKey: File; data: ArrayBuffer }
@@ -89,8 +76,6 @@ export function PdfPreview({ file, className }: PdfPreviewProps) {
     };
   }, [file, isPdf]);
 
-  // Memoize the file prop so react-pdf doesn't warn about equal-but-new
-  // object references triggering unnecessary reloads.
   const readyData =
     asyncResult !== null && !('error' in asyncResult)
       ? asyncResult.data
@@ -100,9 +85,6 @@ export function PdfPreview({ file, className }: PdfPreviewProps) {
     [readyData],
   );
 
-  // Derive the render state from props + async result. If the async result
-  // is for a stale file (user picked a new one before the previous load
-  // finished), treat it as still loading.
   const state: LoadState = ((): LoadState => {
     if (file === null) return { kind: 'empty' };
     if (!isPdf) return { kind: 'unsupported' };
@@ -116,34 +98,32 @@ export function PdfPreview({ file, className }: PdfPreviewProps) {
   if (state.kind === 'empty') {
     return (
       <PreviewShell className={className}>
-        <Placeholder>Preview will appear here once you upload a file.</Placeholder>
+        <Placeholder>Upload a document to see a preview here.</Placeholder>
       </PreviewShell>
     );
   }
   if (state.kind === 'unsupported') {
     return (
       <PreviewShell className={className}>
-        <Placeholder>Preview unavailable for this file type.</Placeholder>
+        <Placeholder>Preview is not available for this file type.</Placeholder>
       </PreviewShell>
     );
   }
   if (state.kind === 'loading') {
     return (
       <PreviewShell className={className}>
-        <Placeholder>Loading preview…</Placeholder>
+        <Placeholder>Loading preview&hellip;</Placeholder>
       </PreviewShell>
     );
   }
   if (state.kind === 'error') {
     return (
       <PreviewShell className={className}>
-        <Placeholder>Couldn&rsquo;t render the preview.</Placeholder>
+        <Placeholder>Could not render preview.</Placeholder>
       </PreviewShell>
     );
   }
 
-  // Only render pages when the loaded metadata matches the current file —
-  // otherwise treat onLoadSuccess from a stale file as not-yet-loaded.
   const numPages = pdfMeta && pdfMeta.fileKey === file ? pdfMeta.numPages : 0;
 
   return (
@@ -156,9 +136,9 @@ export function PdfPreview({ file, className }: PdfPreviewProps) {
         onLoadError={() => {
           if (file) setAsyncResult({ fileKey: file, error: true });
         }}
-        loading={<Placeholder>Loading preview…</Placeholder>}
-        error={<Placeholder>Couldn&rsquo;t render the preview.</Placeholder>}
-        className="flex flex-col gap-2 p-2"
+        loading={<Placeholder>Loading preview&hellip;</Placeholder>}
+        error={<Placeholder>Could not render preview.</Placeholder>}
+        className="flex flex-col gap-3 p-3"
       >
         {Array.from({ length: numPages }, (_, i) => (
           <Page
@@ -167,10 +147,15 @@ export function PdfPreview({ file, className }: PdfPreviewProps) {
             width={380}
             renderAnnotationLayer={false}
             renderTextLayer={false}
-            className="overflow-hidden rounded-sm ring-1 ring-zinc-200/70"
+            className="overflow-hidden rounded-lg shadow-sm ring-1 ring-zinc-200/60 dark:ring-zinc-800"
           />
         ))}
       </Document>
+      {numPages > 0 && (
+        <div className="border-t border-zinc-100 px-4 py-2 text-center text-[11px] text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+          {numPages} {numPages === 1 ? 'page' : 'pages'}
+        </div>
+      )}
     </PreviewShell>
   );
 }

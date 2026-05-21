@@ -1,16 +1,11 @@
 'use client';
 
-// UploadZone — drag-and-drop + click-to-choose for a single document.
-// The parent owns the "selected file" state; this component only fires
-// `onFile` when react-dropzone confirms a single accepted file.
-
 import { useCallback } from 'react';
 import { useDropzone, type FileRejection } from 'react-dropzone';
+import { Upload, FileText, ImageIcon, AlertTriangle } from 'lucide-react';
 import type { UploadZoneProps } from '@/lib/ui/types';
 import { cn } from '@/lib/utils';
 
-// Mirrors the magic-byte allowlist enforced server-side (lib/io). The
-// `accept` map is purely a UX hint — the server re-validates by bytes.
 const ACCEPT = {
   'application/pdf': ['.pdf'],
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
@@ -23,8 +18,6 @@ const ACCEPT = {
 export function UploadZone({ onFile, disabled = false, className }: UploadZoneProps) {
   const onDrop = useCallback(
     (accepted: File[], rejections: FileRejection[]) => {
-      // Reject multi-file drops outright; only fire when exactly one file
-      // passed react-dropzone's accept/maxFiles gates.
       if (rejections.length > 0 || accepted.length !== 1) return;
       const file = accepted[0];
       if (file) onFile(file);
@@ -40,40 +33,67 @@ export function UploadZone({ onFile, disabled = false, className }: UploadZonePr
     disabled,
   });
 
-  // Pick a label + border treatment based on the current drag state.
-  // `isDragReject` wins over `isDragAccept` so a mixed/invalid drag shows
-  // the red affordance.
-  let label = 'Drop a PDF, DOCX, or image here, or click to choose';
-  if (isDragReject) label = 'File type not supported.';
-  else if (isDragAccept) label = 'Drop to upload.';
-
   return (
     <div
       {...getRootProps({
         'aria-label': 'Upload document',
         className: cn(
-          'flex h-[250px] w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed px-6 text-center transition-colors',
-          // Idle palette — matches the zinc scaffold in app/page.tsx.
-          'border-zinc-300 bg-white text-zinc-600 hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300',
-          // Active (valid) drag — blue accent.
-          isDragAccept && 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950/40',
-          // Rejected drag — red accent. Also handles the case where
-          // react-dropzone marks the drag as both active and rejected.
-          isDragReject && 'border-red-500 bg-red-50 text-red-700 dark:bg-red-950/40',
-          // Fallback "active but neither accept nor reject" — rare, but
-          // keep some visual feedback so the user knows the zone sees them.
-          isDragActive && !isDragAccept && !isDragReject && 'border-zinc-500',
-          // Disabled: dim everything and block the cursor.
-          disabled && 'cursor-not-allowed opacity-50 hover:border-zinc-300 dark:hover:border-zinc-700',
+          'group relative flex w-full cursor-pointer flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed px-8 py-12 text-center transition-all duration-200',
+          'border-zinc-200 bg-zinc-50/50 hover:border-primary/40 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/30 dark:hover:border-zinc-600 dark:hover:bg-zinc-900/50',
+          isDragAccept && 'border-emerald-400 bg-emerald-50/60 dark:border-emerald-600 dark:bg-emerald-950/20',
+          isDragReject && 'border-red-400 bg-red-50/60 dark:border-red-600 dark:bg-red-950/20',
+          isDragActive && !isDragAccept && !isDragReject && 'border-zinc-400 bg-zinc-100/80 dark:border-zinc-600',
+          disabled && 'cursor-not-allowed opacity-50',
           className,
         ),
       })}
     >
       <input {...getInputProps()} />
-      <p className="text-sm font-medium">{label}</p>
-      <p className="text-xs text-zinc-500 dark:text-zinc-400">
-        Supported: PDF, DOCX, PNG, JPEG (TIFF, WEBP)
-      </p>
+
+      <div
+        className={cn(
+          'flex size-14 items-center justify-center rounded-full transition-colors duration-200',
+          isDragReject
+            ? 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400'
+            : isDragAccept
+              ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400'
+              : 'bg-zinc-100 text-zinc-400 group-hover:bg-primary/10 group-hover:text-primary dark:bg-zinc-800 dark:text-zinc-500',
+        )}
+      >
+        {isDragReject ? (
+          <AlertTriangle className="size-6" />
+        ) : (
+          <Upload className="size-6" />
+        )}
+      </div>
+
+      <div className="space-y-1">
+        <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+          {isDragReject
+            ? 'File type not supported'
+            : isDragAccept
+              ? 'Drop to upload'
+              : 'Drop a document here, or click to browse'}
+        </p>
+        <p className="text-xs text-zinc-400 dark:text-zinc-500">
+          Supports PDF, DOCX, PNG, JPEG, TIFF, and WEBP
+        </p>
+      </div>
+
+      <div className="flex items-center gap-3 text-zinc-300 dark:text-zinc-700">
+        <div className="flex items-center gap-1 rounded-md bg-zinc-100 px-2 py-1 dark:bg-zinc-800">
+          <FileText className="size-3 text-zinc-400 dark:text-zinc-500" />
+          <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400">PDF</span>
+        </div>
+        <div className="flex items-center gap-1 rounded-md bg-zinc-100 px-2 py-1 dark:bg-zinc-800">
+          <FileText className="size-3 text-zinc-400 dark:text-zinc-500" />
+          <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400">DOCX</span>
+        </div>
+        <div className="flex items-center gap-1 rounded-md bg-zinc-100 px-2 py-1 dark:bg-zinc-800">
+          <ImageIcon className="size-3 text-zinc-400 dark:text-zinc-500" />
+          <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400">Image</span>
+        </div>
+      </div>
     </div>
   );
 }

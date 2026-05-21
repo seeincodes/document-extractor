@@ -1,11 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Check, Circle, Loader2 } from 'lucide-react';
+import { Check, CheckCircle2, Circle, Loader2, XCircle } from 'lucide-react';
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import type { ClientSseEvent, JobProgressProps, JobStage } from '@/lib/ui/types';
 
 type RegionReadyData = Extract<ClientSseEvent, { event: 'region_ready' }>['data'];
@@ -48,20 +45,11 @@ export function JobProgress({ jobId, onEvent }: JobProgressProps) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [doneMsg, setDoneMsg] = useState(false);
 
-  // Stash onEvent in a ref so the SSE effect doesn't need to depend on it.
-  // Without this, any future parent that wraps onEvent in a closure with
-  // captured state would re-trigger the SSE effect, close the EventSource,
-  // and reopen it — silently dropping in-flight events. The ref is updated
-  // inside its own effect (not during render) per react-hooks/refs.
   const onEventRef = useRef(onEvent);
   useEffect(() => {
     onEventRef.current = onEvent;
   });
 
-  // Use fetch + ReadableStream instead of EventSource to consume the SSE
-  // stream. EventSource has built-in reconnection that fires spurious 404
-  // errors when the server closes the finished stream (and React StrictMode's
-  // double-mount in dev makes it worse). A plain fetch gives full control.
   useEffect(() => {
     const ac = new AbortController();
 
@@ -72,7 +60,6 @@ export function JobProgress({ jobId, onEvent }: JobProgressProps) {
           signal: ac.signal,
         });
       } catch {
-        // Aborted by cleanup — expected in StrictMode's double-mount.
         return;
       }
       if (!res.ok || !res.body) {
@@ -128,7 +115,6 @@ export function JobProgress({ jobId, onEvent }: JobProgressProps) {
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
 
-          // Drain complete SSE frames (separated by blank lines).
           let sep = buffer.indexOf('\n\n');
           while (sep !== -1) {
             const frame = buffer.slice(0, sep);
@@ -144,7 +130,7 @@ export function JobProgress({ jobId, onEvent }: JobProgressProps) {
           }
         }
       } catch {
-        // AbortError from cleanup — silently stop.
+        // AbortError from cleanup
       }
     })();
 
@@ -154,46 +140,78 @@ export function JobProgress({ jobId, onEvent }: JobProgressProps) {
   }, [jobId]);
 
   const pct = Math.round(progress * 100);
+  const completedCount = STEPS.filter((step) => {
+    const s: Status = terminated && !errorMsg
+      ? 'done'
+      : stepStatus(step.stage, stage, progress);
+    return s === 'done';
+  }).length;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Progress</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <Progress value={pct} />
-        <ul className="flex flex-col gap-2">
-          {STEPS.map((step) => {
-            const s: Status = terminated && !errorMsg
-              ? 'done'
-              : stepStatus(step.stage, stage, progress);
-            return (
-              <li key={step.stage} className="flex items-center gap-2 text-sm text-zinc-700">
-                {s === 'done' && <Check className="size-4 text-emerald-600" aria-hidden />}
+    <div className="flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3 dark:border-zinc-800">
+        <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+          Progress
+        </h3>
+        <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500">
+          {completedCount}/{STEPS.length}
+        </span>
+      </div>
+
+      <div className="px-4 pt-4 pb-1">
+        <div className="relative h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+          <div
+            className="absolute inset-y-0 left-0 rounded-full bg-emerald-500 transition-all duration-500 ease-out"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-0.5 px-2 py-3">
+        {STEPS.map((step) => {
+          const s: Status = terminated && !errorMsg
+            ? 'done'
+            : stepStatus(step.stage, stage, progress);
+          return (
+            <div
+              key={step.stage}
+              className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors"
+            >
+              <div className="flex size-5 items-center justify-center">
+                {s === 'done' && <Check className="size-4 text-emerald-500" aria-hidden />}
                 {s === 'current' && (
-                  <Loader2 className="size-4 animate-spin text-zinc-600" aria-hidden />
+                  <Loader2 className="size-4 animate-spin text-zinc-500" aria-hidden />
                 )}
-                {s === 'pending' && <Circle className="size-4 text-zinc-300" aria-hidden />}
-                <span className={s === 'pending' ? 'text-zinc-400' : undefined}>{step.label}</span>
-              </li>
-            );
-          })}
-        </ul>
-        {errorMsg && (
-          <Alert variant="destructive">
-            <AlertTitle>Extraction failed</AlertTitle>
-            <AlertDescription>{errorMsg}</AlertDescription>
-          </Alert>
-        )}
-        {doneMsg && !errorMsg && (
-          <Alert className="border-emerald-200 bg-emerald-50 text-emerald-900">
-            <AlertTitle>Extraction complete</AlertTitle>
-            <AlertDescription className="text-emerald-800">
-              All regions have been processed.
-            </AlertDescription>
-          </Alert>
-        )}
-      </CardContent>
-    </Card>
+                {s === 'pending' && <Circle className="size-3.5 text-zinc-200 dark:text-zinc-700" aria-hidden />}
+              </div>
+              <span
+                className={
+                  s === 'done'
+                    ? 'text-sm text-zinc-700 dark:text-zinc-300'
+                    : s === 'current'
+                      ? 'text-sm font-medium text-zinc-800 dark:text-zinc-100'
+                      : 'text-sm text-zinc-300 dark:text-zinc-600'
+                }
+              >
+                {step.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {errorMsg && (
+        <div className="mx-3 mb-3 flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2.5 text-xs text-red-700 dark:bg-red-950/30 dark:text-red-300">
+          <XCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          <span>{errorMsg}</span>
+        </div>
+      )}
+      {doneMsg && !errorMsg && (
+        <div className="mx-3 mb-3 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
+          <CheckCircle2 className="size-3.5 shrink-0" aria-hidden />
+          All regions processed
+        </div>
+      )}
+    </div>
   );
 }
